@@ -40,12 +40,15 @@
             <span>Edificio</span>
             <select id="buildingSelect">
               <option value="">Seleccionar edificio…</option>
-              <option value="building1">Edificio 1</option>
-              <option value="building2">Edificio 2</option>
+              <option value="building1">Newton</option>
+              <option value="building2">Olimpo</option>
             </select>
           </label>
           <button id="overviewBtn" class="button button--dark" type="button">
             <span class="button-icon">▦</span> Ver cuadro general
+          </button>
+          <button id="calendarBtn" class="button button--calendar" type="button">
+            <span class="button-icon">▣</span> Abrir calendario diario
           </button>
           <button id="installBtn" class="button button--install" type="button" hidden>
             <span class="button-icon">⇩</span> Instalar aplicación
@@ -96,22 +99,85 @@
         <label class="compact-filter">Edificio
           <select id="overviewBuilding">
             <option value="all">Todos</option>
-            <option value="building1">Edificio 1</option>
-            <option value="building2">Edificio 2</option>
+            <option value="building1">Newton</option>
+            <option value="building2">Olimpo</option>
           </select>
         </label>
       </div>
       <div class="page-heading page-heading--overview">
         <div><p class="section-kicker">Vista de conjunto</p><h2 id="overviewTitle">Estado de todos los pisos</h2><p>Cada color indica el estado de una tarea. Pulsa una fila para editar ese piso.</p></div>
-        <div class="legend"><span><i class="dot red"></i>Sin empezar</span><span><i class="dot yellow"></i>En proceso</span><span><i class="dot green"></i>Terminado</span></div>
+        <div class="legend"><span><i class="dot red"></i>Sin empezar</span><span><i class="dot yellow"></i>En proceso</span><span><i class="dot green"></i>Terminado</span><span><i class="dot blue"></i>Alquilado</span></div>
       </div>
       <div class="overview-table-wrap">
         <table class="overview-table">
-          <thead><tr><th>Edificio</th><th>Piso</th><th title="Limpieza">LIM</th><th title="Mobiliario">MOB</th><th title="Instalaciones">INS</th><th title="Enseres">ENS</th><th title="Clima">CLI</th><th title="Seguridad">SEG</th><th>Avance</th></tr></thead>
+          <thead><tr><th>Edificio</th><th>Piso</th><th title="Limpieza">LIM</th><th title="Mobiliario">MOB</th><th title="Instalaciones">INS</th><th title="Enseres">ENS</th><th title="Clima">CLI</th><th title="Seguridad">SEG</th><th title="Pintura">PIN</th><th>Avance</th></tr></thead>
           <tbody id="overviewBody"></tbody>
         </table>
       </div>
-      <p class="table-help">LIM: Limpieza · MOB: Mobiliario · INS: Instalaciones · ENS: Enseres · CLI: Clima · SEG: Seguridad</p>
+      <p class="table-help">LIM: Limpieza · MOB: Mobiliario · INS: Instalaciones · ENS: Enseres · CLI: Clima · SEG: Seguridad · PIN: Pintura</p>
+    </section>
+
+    <section id="calendarView" class="view" aria-labelledby="calendarTitle">
+      <div class="toolbar">
+        <button class="back-button" data-go-home type="button">← Menú inicial</button>
+        <button id="monthlyListBtn" class="button button--light" type="button">▦ Ver listado mensual</button>
+      </div>
+      <div class="page-heading">
+        <div><p class="section-kicker">Diario de trabajo</p><h2 id="calendarTitle">Calendario</h2><p>Selecciona un día para añadir una foto y dejar constancia del trabajo realizado.</p></div>
+      </div>
+      <article class="calendar-card">
+        <div class="calendar-nav">
+          <button id="previousMonth" type="button" aria-label="Mes anterior">←</button>
+          <h3 id="calendarMonth"></h3>
+          <button id="nextMonth" type="button" aria-label="Mes siguiente">→</button>
+        </div>
+        <div class="calendar-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </article>
+    </section>
+
+    <section id="dayView" class="view" aria-labelledby="dayTitle">
+      <div class="toolbar">
+        <button id="backToCalendar" class="back-button" type="button">← Volver al calendario</button>
+        <button class="back-button" data-go-home type="button">Menú inicial</button>
+      </div>
+      <div class="page-heading">
+        <div><p class="section-kicker">Memoria diaria</p><h2 id="dayTitle">Día seleccionado</h2><p>La ficha se guarda en este dispositivo.</p></div>
+      </div>
+      <article class="day-card">
+        <div class="photo-panel">
+          <div id="photoPreview" class="photo-preview"><span>Sin fotografía</span></div>
+          <div class="photo-actions">
+            <label class="button button--dark">📷 Hacer foto<input id="cameraInput" type="file" accept="image/*" capture="environment"></label>
+            <label class="button button--light">▧ Cargar foto<input id="galleryInput" type="file" accept="image/*"></label>
+            <button id="removePhoto" class="text-button text-button--danger" type="button" hidden>Eliminar fotografía</button>
+          </div>
+        </div>
+        <div class="day-fields">
+          <label for="dayTag">Etiqueta breve <span id="tagCounter">0/60</span></label>
+          <input id="dayTag" type="text" maxlength="60" placeholder="Ej.: Pintura terminada en planta 2">
+          <label for="dayMemo">Memoria del día</label>
+          <textarea id="dayMemo" rows="9" maxlength="2500" placeholder="Describe los trabajos, incidencias o asuntos pendientes…"></textarea>
+          <button id="saveDay" class="button button--dark" type="button">Guardar ficha</button>
+        </div>
+      </article>
+    </section>
+
+    <section id="journalListView" class="view" aria-labelledby="journalListTitle">
+      <div class="toolbar">
+        <button class="back-button" data-go-home type="button">← Menú inicial</button>
+        <button id="backToCalendarFromList" class="button button--light" type="button">▣ Calendario</button>
+      </div>
+      <div class="page-heading page-heading--overview">
+        <div><p class="section-kicker">Resumen mensual</p><h2 id="journalListTitle">Memoria del mes</h2><p>Pulsa cualquier día para abrir o completar su ficha.</p></div>
+        <div class="month-picker"><button id="listPreviousMonth" type="button">←</button><strong id="listMonth"></strong><button id="listNextMonth" type="button">→</button></div>
+      </div>
+      <div class="overview-table-wrap">
+        <table class="overview-table journal-table">
+          <thead><tr><th>Día</th><th>Fotografía</th><th>Descripción</th></tr></thead>
+          <tbody id="journalListBody"></tbody>
+        </table>
+      </div>
     </section>
   </main>
 
