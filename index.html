@@ -146,7 +146,7 @@
       </div>
       <article class="day-card">
         <div class="photo-panel">
-          <div id="photoPreview" class="photo-preview"><span>Sin fotografía</span></div>
+          <div id="photoPreview" class="photo-preview" role="button" tabindex="0" aria-label="Opciones de fotografía"><span>Sin fotografía</span></div>
           <div class="photo-actions">
             <label class="button button--dark">📷 Hacer foto<input id="cameraInput" type="file" accept="image/*" capture="environment"></label>
             <label class="button button--light">▧ Cargar foto<input id="galleryInput" type="file" accept="image/*"></label>
@@ -154,6 +154,12 @@
           </div>
         </div>
         <div class="day-fields">
+          <div class="day-location-fields">
+            <label for="dayBuilding">Edificio</label>
+            <select id="dayBuilding"><option value="building1">Newton</option><option value="building2">Olimpo</option></select>
+            <label for="dayApartment">Piso</label>
+            <select id="dayApartment"></select>
+          </div>
           <label for="dayTag">Etiqueta breve <span id="tagCounter">0/60</span></label>
           <input id="dayTag" type="text" maxlength="60" placeholder="Ej.: Pintura terminada en planta 2">
           <label for="dayMemo">Memoria del día</label>
@@ -161,6 +167,17 @@
           <button id="saveDay" class="button button--dark" type="button">Guardar ficha</button>
         </div>
       </article>
+      <div id="photoOptions" class="photo-options" role="dialog" aria-modal="true" aria-labelledby="photoOptionsTitle" hidden>
+        <div class="photo-options__sheet">
+          <h3 id="photoOptionsTitle">Opciones de la imagen</h3>
+          <button id="viewPhoto" type="button">① Ver imagen completa</button>
+          <button id="takeAnotherPhoto" type="button">② Hacer otra foto</button>
+          <button id="loadAnotherPhoto" type="button">③ Cargar otra imagen</button>
+          <button id="downloadPhoto" type="button">④ Guardar en el dispositivo</button>
+          <button id="deletePhotoOption" class="danger" type="button">⑤ Eliminar imagen</button>
+          <button id="closePhotoOptions" class="cancel" type="button">Cancelar</button>
+        </div>
+      </div>
     </section>
 
     <section id="journalListView" class="view" aria-labelledby="journalListTitle">
@@ -172,9 +189,14 @@
         <div><p class="section-kicker">Resumen mensual</p><h2 id="journalListTitle">Memoria del mes</h2><p>Pulsa cualquier día para abrir o completar su ficha.</p></div>
         <div class="month-picker"><button id="listPreviousMonth" type="button">←</button><strong id="listMonth"></strong><button id="listNextMonth" type="button">→</button></div>
       </div>
+      <div class="journal-filters">
+        <label>Filtrar por edificio<select id="journalBuildingFilter"><option value="all">Todos</option><option value="building1">Newton</option><option value="building2">Olimpo</option></select></label>
+        <label>Filtrar por piso<select id="journalApartmentFilter"><option value="all">Todos los pisos</option></select></label>
+        <button id="clearJournalFilters" class="button button--light" type="button">Quitar filtros</button>
+      </div>
       <div class="overview-table-wrap">
         <table class="overview-table journal-table">
-          <thead><tr><th>Día</th><th>Fotografía</th><th>Descripción</th></tr></thead>
+          <thead><tr><th>Día</th><th>Vivienda</th><th>Fotografía</th><th>Descripción</th></tr></thead>
           <tbody id="journalListBody"></tbody>
         </table>
       </div>

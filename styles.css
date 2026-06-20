@@ -129,6 +129,8 @@ textarea { width: 100%; resize: vertical; border: 1px solid #cfd4d1; border-radi
 .day-card { display: grid; grid-template-columns: minmax(300px, .9fr) 1.1fr; }
 .photo-panel { padding: 25px; border-right: 1px solid var(--line); background: #f7f5ef; }
 .photo-preview { aspect-ratio: 4 / 3; display: grid; place-items: center; overflow: hidden; border: 2px dashed #cbd0cd; border-radius: 14px; color: var(--muted); background: white; }
+.photo-preview:focus-visible { outline: 3px solid rgba(47,138,94,.35); outline-offset: 3px; }
+.photo-preview:has(img) { cursor: pointer; border-style: solid; }
 .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
 .photo-actions { display: grid; gap: 9px; margin-top: 14px; }
 .photo-actions label { text-align: center; }
@@ -139,9 +141,24 @@ textarea { width: 100%; resize: vertical; border: 1px solid #cfd4d1; border-radi
 .day-fields label span { color: var(--muted); font-size: 12px; }
 .day-fields input, .day-fields textarea { width: 100%; border: 1px solid #cfd4d1; border-radius: 10px; padding: 12px; color: var(--ink); background: white; }
 .day-fields .button { width: 100%; margin-top: 18px; }
+.day-location-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 12px; padding: 14px; margin-bottom: 22px; border-radius: 12px; background: #f3f1ea; }
+.day-location-fields label, .day-fields .day-location-fields label:not(:first-child) { margin: 0; font-size: 12px; color: var(--muted); }
+.day-location-fields select { padding: 11px; }
+.photo-options { position: fixed; inset: 0; z-index: 30; display: grid; align-items: end; justify-items: center; padding: 20px; background: rgba(9,27,23,.64); backdrop-filter: blur(4px); }
+.photo-options[hidden] { display: none; }
+.photo-options__sheet { width: min(480px, 100%); padding: 16px; border-radius: 20px; background: var(--card); box-shadow: 0 24px 70px rgba(0,0,0,.3); }
+.photo-options__sheet h3 { margin: 4px 8px 13px; font: 600 23px Georgia, serif; }
+.photo-options__sheet button { width: 100%; padding: 14px 12px; border: 0; border-top: 1px solid var(--line); text-align: left; color: var(--ink); background: transparent; font-weight: 700; }
+.photo-options__sheet button:hover { background: #f5f3ed; }
+.photo-options__sheet .danger { color: #a4423a; }
+.photo-options__sheet .cancel { margin-top: 8px; border: 0; border-radius: 10px; text-align: center; background: #ebe9e2; }
 .month-picker { display: flex; align-items: center; gap: 12px; white-space: nowrap; text-transform: capitalize; }
+.journal-filters { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; margin: 0 0 16px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,253,248,.72); }
+.journal-filters label { color: var(--muted); font-size: 12px; font-weight: 750; }
+.journal-filters select { display: block; margin-top: 6px; min-width: 165px; }
+.journal-filters .button { height: 45px; }
 .journal-table td:first-child { min-width: 125px; }
-.journal-table td:nth-child(3) { text-align: left; }
+.journal-table td:nth-child(4) { text-align: left; }
 .journal-photo { width: 78px; height: 58px; display: grid; place-items: center; margin: auto; overflow: hidden; border-radius: 8px; color: var(--muted); background: #eeeae0; font-size: 11px; }
 .journal-photo img { width: 100%; height: 100%; object-fit: cover; }
 .journal-description strong { display: block; margin-bottom: 4px; }
@@ -174,6 +191,8 @@ footer span { margin: 0 6px; }
   .legend { justify-content: flex-start; }
   .day-card { grid-template-columns: 1fr; }
   .photo-panel { border-right: 0; border-bottom: 1px solid var(--line); }
+  .journal-filters { grid-template-columns: 1fr 1fr; }
+  .journal-filters .button { grid-column: 1 / -1; }
 }
 
 @media (max-width: 460px) {
@@ -189,4 +208,6 @@ footer span { margin: 0 6px; }
   .calendar-day { min-height: 53px; padding: 7px; }
   .calendar-weekdays { padding-left: 8px; padding-right: 8px; }
   .month-picker { width: 100%; justify-content: space-between; }
+  .journal-filters { grid-template-columns: 1fr; }
+  .journal-filters .button { grid-column: auto; }
 }

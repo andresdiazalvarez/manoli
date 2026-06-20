@@ -179,6 +179,10 @@ function prettyDate(key) {
 }
 function daysInMonth(date) { return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate(); }
 function monthTitle(date) { return `${MONTHS[date.getMonth()]} de ${date.getFullYear()}`; }
+function populateApartmentSelect(select, includeAll = false, building = 'building1') {
+  const options = includeAll ? '<option value="all">Todos los pisos</option>' : '';
+  select.innerHTML = options + data[building].map(apartment => `<option value="${apartment.number}">Piso ${apartment.number}</option>`).join('');
+}
 
 async function renderCalendar() {
   $('#calendarMonth').textContent = monthTitle(monthCursor);
@@ -203,9 +207,12 @@ async function openDay(key) {
   selectedDateKey = key;
   const [year, month] = key.split('-').map(Number);
   monthCursor = new Date(year, month - 1, 1);
-  const entry = await getDiaryEntry(key) || { date: key, tag: '', memo: '', photo: '' };
+  const entry = await getDiaryEntry(key) || { date: key, tag: '', memo: '', photo: '', building: 'building1', apartmentNumber: 1 };
   currentPhoto = entry.photo || '';
   $('#dayTitle').textContent = prettyDate(key);
+  $('#dayBuilding').value = entry.building || 'building1';
+  populateApartmentSelect($('#dayApartment'), false, $('#dayBuilding').value);
+  $('#dayApartment').value = String(entry.apartmentNumber || 1);
   $('#dayTag').value = entry.tag || '';
   $('#dayMemo').value = entry.memo || '';
   $('#tagCounter').textContent = `${$('#dayTag').value.length}/60`;
@@ -245,7 +252,7 @@ async function handlePhoto(event) {
   event.target.value = '';
 }
 async function saveDayEntry() {
-  await putDiaryEntry({ date: selectedDateKey, tag: $('#dayTag').value.trim(), memo: $('#dayMemo').value.trim(), photo: currentPhoto, updatedAt: Date.now() });
+  await putDiaryEntry({ date: selectedDateKey, building: $('#dayBuilding').value, apartmentNumber: Number($('#dayApartment').value), tag: $('#dayTag').value.trim(), memo: $('#dayMemo').value.trim(), photo: currentPhoto, updatedAt: Date.now() });
   showToastMessage('Ficha diaria guardada');
   await renderCalendar();
 }
@@ -253,14 +260,21 @@ async function renderJournalList() {
   $('#listMonth').textContent = monthTitle(monthCursor);
   const entries = await getMonthEntries(monthCursor);
   const entryMap = new Map(entries.map(entry => [entry.date, entry]));
+  const buildingFilter = $('#journalBuildingFilter').value;
+  const apartmentFilter = $('#journalApartmentFilter').value;
+  const filtersActive = buildingFilter !== 'all' || apartmentFilter !== 'all';
   const rows = [];
   for (let day = 1; day <= daysInMonth(monthCursor); day += 1) {
     const key = dateKey(monthCursor.getFullYear(), monthCursor.getMonth(), day);
     const entry = entryMap.get(key);
+    const matchesBuilding = buildingFilter === 'all' || entry?.building === buildingFilter;
+    const matchesApartment = apartmentFilter === 'all' || String(entry?.apartmentNumber) === apartmentFilter;
+    if (filtersActive && (!entry || !matchesBuilding || !matchesApartment)) continue;
     const preview = entry?.memo ? `${entry.memo.slice(0, 130)}${entry.memo.length > 130 ? '…' : ''}` : 'Sin memoria';
-    rows.push(`<tr data-date="${key}"><td>${day} ${MONTHS[monthCursor.getMonth()]}</td><td><div class="journal-photo">${entry?.photo ? `<img src="${entry.photo}" alt="Foto del día ${day}">` : 'Sin foto'}</div></td><td><div class="journal-description"><strong>${escapeHtml(entry?.tag || 'Sin etiqueta')}</strong><span>${escapeHtml(preview)}</span></div></td></tr>`);
+    const location = entry?.building ? `${BUILDINGS[entry.building]} · Piso ${entry.apartmentNumber}` : 'Sin asignar';
+    rows.push(`<tr data-date="${key}"><td>${day} ${MONTHS[monthCursor.getMonth()]}</td><td>${escapeHtml(location)}</td><td><div class="journal-photo">${entry?.photo ? `<img src="${entry.photo}" alt="Foto del día ${day}">` : 'Sin foto'}</div></td><td><div class="journal-description"><strong>${escapeHtml(entry?.tag || 'Sin etiqueta')}</strong><span>${escapeHtml(preview)}</span></div></td></tr>`);
   }
-  $('#journalListBody').innerHTML = rows.join('');
+  $('#journalListBody').innerHTML = rows.length ? rows.join('') : '<tr><td colspan="4">No hay fichas que coincidan con este filtro.</td></tr>';
 }
 async function openJournalList() {
   await renderJournalList();
@@ -322,9 +336,47 @@ $('#listNextMonth').addEventListener('click', async () => { monthCursor.setMonth
 $('#journalListBody').addEventListener('click', event => { const row = event.target.closest('[data-date]'); if (row) openDay(row.dataset.date); });
 $('#cameraInput').addEventListener('change', handlePhoto);
 $('#galleryInput').addEventListener('change', handlePhoto);
-$('#removePhoto').addEventListener('click', () => { currentPhoto = ''; renderPhotoPreview(); });
+$('#dayBuilding').addEventListener('change', event => populateApartmentSelect($('#dayApartment'), false, event.target.value));
+async function deleteCurrentPhoto() {
+  if (!currentPhoto || !confirm('¿Eliminar la fotografía de este día?')) return;
+  currentPhoto = '';
+  renderPhotoPreview();
+  $('#photoOptions').hidden = true;
+  await saveDayEntry();
+}
+$('#removePhoto').addEventListener('click', deleteCurrentPhoto);
 $('#dayTag').addEventListener('input', event => { $('#tagCounter').textContent = `${event.target.value.length}/60`; });
 $('#saveDay').addEventListener('click', saveDayEntry);
+
+function openPhotoOptions() { if (currentPhoto) $('#photoOptions').hidden = false; }
+function closePhotoOptions() { $('#photoOptions').hidden = true; }
+$('#photoPreview').addEventListener('click', openPhotoOptions);
+$('#photoPreview').addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') openPhotoOptions(); });
+$('#closePhotoOptions').addEventListener('click', closePhotoOptions);
+$('#photoOptions').addEventListener('click', event => { if (event.target === $('#photoOptions')) closePhotoOptions(); });
+$('#viewPhoto').addEventListener('click', () => {
+  const viewer = window.open('', '_blank');
+  if (viewer) viewer.document.write(`<title>Fotografía ${selectedDateKey}</title><style>body{margin:0;background:#111;display:grid;place-items:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${currentPhoto}" alt="Fotografía del día">`);
+});
+$('#takeAnotherPhoto').addEventListener('click', () => { closePhotoOptions(); $('#cameraInput').click(); });
+$('#loadAnotherPhoto').addEventListener('click', () => { closePhotoOptions(); $('#galleryInput').click(); });
+$('#downloadPhoto').addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.href = currentPhoto;
+  link.download = `manoli-${selectedDateKey}.jpg`;
+  link.click();
+  closePhotoOptions();
+});
+$('#deletePhotoOption').addEventListener('click', deleteCurrentPhoto);
+
+populateApartmentSelect($('#journalApartmentFilter'), true);
+$('#journalBuildingFilter').addEventListener('change', renderJournalList);
+$('#journalApartmentFilter').addEventListener('change', renderJournalList);
+$('#clearJournalFilters').addEventListener('click', () => {
+  $('#journalBuildingFilter').value = 'all';
+  $('#journalApartmentFilter').value = 'all';
+  renderJournalList();
+});
 
 const installBtn = $('#installBtn');
 const installHelp = $('#iosInstallHelp');
