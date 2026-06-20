@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#193c34">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Manoli">
+  <title>Manoli · Control de viviendas</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__shade"></div>
+    <div class="hero__content">
+      <div class="brand-mark" aria-hidden="true">M</div>
+      <div>
+        <p class="eyebrow">CONTROL DE VIVIENDAS</p>
+        <h1>Proyecto Manoli</h1>
+        <p class="subtitle">Preparando cada hogar, detalle a detalle.</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section id="homeView" class="view active" aria-labelledby="homeTitle">
+      <div class="welcome">
+        <div>
+          <p class="section-kicker">Panel principal</p>
+          <h2 id="homeTitle">¿Qué edificio quieres revisar?</h2>
+          <p>Selecciona un edificio para actualizar sus viviendas o consulta el estado global.</p>
+        </div>
+        <div class="home-actions">
+          <label class="select-wrap select-wrap--large">
+            <span>Edificio</span>
+            <select id="buildingSelect">
+              <option value="">Seleccionar edificio…</option>
+              <option value="building1">Edificio 1</option>
+              <option value="building2">Edificio 2</option>
+            </select>
+          </label>
+          <button id="overviewBtn" class="button button--dark" type="button">
+            <span class="button-icon">▦</span> Ver cuadro general
+          </button>
+          <button id="installBtn" class="button button--install" type="button" hidden>
+            <span class="button-icon">⇩</span> Instalar aplicación
+          </button>
+        </div>
+      </div>
+
+      <div class="summary-cards" id="summaryCards"></div>
+    </section>
+
+    <section id="buildingView" class="view" aria-labelledby="buildingTitle">
+      <div class="toolbar">
+        <button class="back-button" data-go-home type="button">← Menú inicial</button>
+        <button id="showBuildingOverview" class="button button--light" type="button">▦ Ver resumen</button>
+      </div>
+      <div class="page-heading">
+        <div>
+          <p class="section-kicker">Actualización de estado</p>
+          <h2 id="buildingTitle">Edificio</h2>
+          <p>Los cambios se guardan automáticamente en este dispositivo.</p>
+        </div>
+        <div class="progress-ring" id="buildingProgress"><strong>0%</strong><span>terminado</span></div>
+      </div>
+      <div class="apartment-tabs" id="apartmentTabs" role="tablist"></div>
+      <article class="apartment-card">
+        <div class="apartment-card__head">
+          <div>
+            <span class="door-icon">⌂</span>
+            <div><p>Vivienda seleccionada</p><h3 id="apartmentTitle">Piso 1</h3></div>
+          </div>
+          <span id="apartmentBadge" class="status-badge">Sin empezar</span>
+        </div>
+        <div id="statusFields" class="status-fields"></div>
+        <div class="notes-block">
+          <label for="apartmentNotes">Notas u observaciones</label>
+          <textarea id="apartmentNotes" rows="3" placeholder="Ej.: falta revisar la lámpara del salón…"></textarea>
+        </div>
+      </article>
+      <div class="manage-row">
+        <button id="addApartment" class="text-button" type="button">＋ Añadir piso</button>
+        <button id="removeApartment" class="text-button text-button--danger" type="button">Eliminar piso actual</button>
+      </div>
+    </section>
+
+    <section id="overviewView" class="view" aria-labelledby="overviewTitle">
+      <div class="toolbar">
+        <button class="back-button" data-go-home type="button">← Menú inicial</button>
+        <label class="compact-filter">Edificio
+          <select id="overviewBuilding">
+            <option value="all">Todos</option>
+            <option value="building1">Edificio 1</option>
+            <option value="building2">Edificio 2</option>
+          </select>
+        </label>
+      </div>
+      <div class="page-heading page-heading--overview">
+        <div><p class="section-kicker">Vista de conjunto</p><h2 id="overviewTitle">Estado de todos los pisos</h2><p>Cada color indica el estado de una tarea. Pulsa una fila para editar ese piso.</p></div>
+        <div class="legend"><span><i class="dot red"></i>Sin empezar</span><span><i class="dot yellow"></i>En proceso</span><span><i class="dot green"></i>Terminado</span></div>
+      </div>
+      <div class="overview-table-wrap">
+        <table class="overview-table">
+          <thead><tr><th>Edificio</th><th>Piso</th><th title="Limpieza">LIM</th><th title="Mobiliario">MOB</th><th title="Instalaciones">INS</th><th title="Enseres">ENS</th><th title="Clima">CLI</th><th title="Seguridad">SEG</th><th>Avance</th></tr></thead>
+          <tbody id="overviewBody"></tbody>
+        </table>
+      </div>
+      <p class="table-help">LIM: Limpieza · MOB: Mobiliario · INS: Instalaciones · ENS: Enseres · CLI: Clima · SEG: Seguridad</p>
+    </section>
+  </main>
+
+  <footer>Proyecto Manoli <span>·</span> Control de viviendas</footer>
+  <div id="toast" class="toast" role="status" aria-live="polite">Cambio guardado</div>
+  <div id="iosInstallHelp" class="install-help" role="dialog" aria-modal="true" aria-labelledby="installHelpTitle" hidden>
+    <div class="install-help__card">
+      <button id="closeInstallHelp" class="install-help__close" type="button" aria-label="Cerrar">×</button>
+      <p class="section-kicker">Instalar en iPhone o iPad</p>
+      <h2 id="installHelpTitle">Añádela a tu pantalla de inicio</h2>
+      <p>En Safari, pulsa <strong>Compartir</strong> y después <strong>“Añadir a pantalla de inicio”</strong>.</p>
+      <button id="understoodInstall" class="button button--dark" type="button">Entendido</button>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
