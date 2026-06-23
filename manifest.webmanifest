@@ -1,6 +1,6 @@
 {
-  "name": "Proyecto Manoli · Control de viviendas",
-  "short_name": "Manoli",
+  "name": "Edificios Lachar · Control de viviendas",
+  "short_name": "Lachar",
   "description": "Seguimiento del estado de las viviendas preparadas para alquilar.",
   "start_url": "./",
   "scope": "./",

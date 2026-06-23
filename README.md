@@ -1,6 +1,6 @@
-# Proyecto Manoli
+# Edificios Lachar
 
-Aplicación web instalable para controlar el estado de las viviendas de los edificios 1 y 2.
+Aplicación web instalable para controlar el estado de las viviendas de los edificios Newton y Olimpo.
 
 ## Publicar en GitHub Pages
 

@@ -16,6 +16,8 @@ const STATUS = {
 const BUILDINGS = { building1: 'Newton', building2: 'Olimpo' };
 const STORAGE_KEY = 'manoli-viviendas-v1';
 const DIARY_DB = 'manoli-diario-v1';
+const DIARY_DB_VERSION = 2;
+const APARTMENT_PHOTO_SLOTS = 4;
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 function freshApartment(number) {
@@ -60,6 +62,7 @@ let deferredInstallPrompt = null;
 let monthCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedDateKey = '';
 let currentPhoto = '';
+let selectedApartmentPhotoSlot = 0;
 
 const $ = selector => document.querySelector(selector);
 const views = [...document.querySelectorAll('.view')];
@@ -130,6 +133,7 @@ function renderBuilding() {
   const progress = buildingPercent(currentBuilding);
   $('#buildingProgress').style.background = `conic-gradient(var(--green) ${progress}%, #d9dedb 0)`;
   $('#buildingProgress strong').textContent = `${progress}%`;
+  renderApartmentPhotos();
   requestAnimationFrame(() => document.querySelector('.tab.active')?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }));
 }
 function renderOverview() {
@@ -144,19 +148,20 @@ function renderOverview() {
 
 function openDiaryDatabase() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DIARY_DB, 1);
+    const request = indexedDB.open(DIARY_DB, DIARY_DB_VERSION);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains('entries')) request.result.createObjectStore('entries', { keyPath: 'date' });
+      if (!request.result.objectStoreNames.contains('apartmentPhotos')) request.result.createObjectStore('apartmentPhotos', { keyPath: 'id' });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
-async function diaryOperation(mode, operation) {
+async function diaryOperation(mode, operation, storeName = 'entries') {
   const database = await openDiaryDatabase();
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction('entries', mode);
-    const store = transaction.objectStore('entries');
+    const transaction = database.transaction(storeName, mode);
+    const store = transaction.objectStore(storeName);
     const request = operation(store);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -165,10 +170,33 @@ async function diaryOperation(mode, operation) {
 }
 const getDiaryEntry = date => diaryOperation('readonly', store => store.get(date));
 const putDiaryEntry = entry => diaryOperation('readwrite', store => store.put(entry));
+const apartmentPhotoId = (building, apartmentNumber, slot) => `${building}-${apartmentNumber}-${slot}`;
+const getApartmentPhoto = (building, apartmentNumber, slot) => diaryOperation('readonly', store => store.get(apartmentPhotoId(building, apartmentNumber, slot)), 'apartmentPhotos');
+const putApartmentPhoto = photo => diaryOperation('readwrite', store => store.put(photo), 'apartmentPhotos');
+const deleteApartmentPhoto = (building, apartmentNumber, slot) => diaryOperation('readwrite', store => store.delete(apartmentPhotoId(building, apartmentNumber, slot)), 'apartmentPhotos');
 async function getMonthEntries(date) {
   const prefix = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   const entries = await diaryOperation('readonly', store => store.getAll());
   return entries.filter(entry => entry.date.startsWith(prefix));
+}
+async function renderApartmentPhotos() {
+  const building = currentBuilding;
+  const apartment = data[currentBuilding][currentApartment];
+  if (!apartment) return;
+  const apartmentNumber = apartment.number;
+  const photos = await Promise.all(Array.from({ length: APARTMENT_PHOTO_SLOTS }, (_, slot) => getApartmentPhoto(building, apartmentNumber, slot)));
+  if (building !== currentBuilding || data[currentBuilding][currentApartment]?.number !== apartmentNumber) return;
+  $('#apartmentPhotosGrid').innerHTML = photos.map((photo, slot) => `
+    <div class="apartment-photo-slot ${photo?.photo ? 'has-photo' : ''}" data-photo-slot="${slot}">
+      <button class="apartment-photo-preview" data-photo-action="${photo?.photo ? 'view' : 'load'}" type="button">
+        ${photo?.photo ? `<img src="${photo.photo}" alt="Imagen ${slot + 1} del piso ${apartmentNumber}">` : `<span>Imagen ${slot + 1}</span>`}
+      </button>
+      <div class="apartment-photo-actions">
+        <button type="button" data-photo-action="load">${photo?.photo ? 'Cambiar' : 'Cargar'}</button>
+        <button type="button" data-photo-action="delete" ${photo?.photo ? '' : 'disabled'}>Eliminar</button>
+      </div>
+    </div>
+  `).join('');
 }
 function dateKey(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -302,6 +330,52 @@ $('#statusFields').addEventListener('change', event => {
 });
 $('#apartmentNotes').addEventListener('input', event => { data[currentBuilding][currentApartment].notes = event.target.value; save(false); });
 $('#apartmentNotes').addEventListener('change', () => save());
+$('#apartmentPhotosGrid').addEventListener('click', async event => {
+  const actionButton = event.target.closest('[data-photo-action]');
+  const slotElement = event.target.closest('[data-photo-slot]');
+  if (!actionButton || !slotElement) return;
+  const slot = Number(slotElement.dataset.photoSlot);
+  const apartment = data[currentBuilding][currentApartment];
+  if (!apartment) return;
+  const action = actionButton.dataset.photoAction;
+  if (action === 'load') {
+    selectedApartmentPhotoSlot = slot;
+    $('#apartmentPhotoInput').click();
+    return;
+  }
+  if (action === 'view') {
+    const record = await getApartmentPhoto(currentBuilding, apartment.number, slot);
+    if (!record?.photo) return;
+    const viewer = window.open('', '_blank');
+    if (viewer) viewer.document.write(`<title>Imagen piso ${apartment.number}</title><style>body{margin:0;background:#111;display:grid;place-items:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${record.photo}" alt="Imagen del piso">`);
+    return;
+  }
+  if (action === 'delete') {
+    if (!confirm(`¿Eliminar la imagen ${slot + 1} del Piso ${apartment.number}?`)) return;
+    await deleteApartmentPhoto(currentBuilding, apartment.number, slot);
+    await renderApartmentPhotos();
+    showToastMessage('Imagen eliminada');
+  }
+});
+$('#apartmentPhotoInput').addEventListener('change', async event => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const apartment = data[currentBuilding][currentApartment];
+  try {
+    const photo = await resizePhoto(file);
+    await putApartmentPhoto({
+      id: apartmentPhotoId(currentBuilding, apartment.number, selectedApartmentPhotoSlot),
+      building: currentBuilding,
+      apartmentNumber: apartment.number,
+      slot: selectedApartmentPhotoSlot,
+      photo,
+      updatedAt: Date.now()
+    });
+    await renderApartmentPhotos();
+    showToastMessage('Imagen guardada en el piso');
+  } catch { alert('No se ha podido cargar esta imagen. Prueba con otra fotografía.'); }
+  event.target.value = '';
+});
 $('#addApartment').addEventListener('click', () => {
   const apartments = data[currentBuilding];
   const nextNumber = Math.max(...apartments.map(apt => Number(apt.number) || 0)) + 1;

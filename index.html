@@ -7,8 +7,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Manoli">
-  <title>Manoli · Control de viviendas</title>
+  <meta name="apple-mobile-web-app-title" content="Edificios Lachar">
+  <title>Edificios Lachar · Control de viviendas</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -21,7 +21,7 @@
       <div class="brand-mark" aria-hidden="true">M</div>
       <div>
         <p class="eyebrow">CONTROL DE VIVIENDAS</p>
-        <h1>Proyecto Manoli</h1>
+        <h1>Edificios Lachar</h1>
         <p class="subtitle">Preparando cada hogar, detalle a detalle.</p>
       </div>
     </div>
@@ -85,6 +85,16 @@
         <div class="notes-block">
           <label for="apartmentNotes">Notas u observaciones</label>
           <textarea id="apartmentNotes" rows="3" placeholder="Ej.: falta revisar la lámpara del salón…"></textarea>
+        </div>
+        <div class="apartment-photos-block">
+          <div class="apartment-photos-block__head">
+            <div>
+              <h4>Imágenes del piso</h4>
+              <p>Puedes guardar hasta 4 fotografías para esta vivienda.</p>
+            </div>
+          </div>
+          <div id="apartmentPhotosGrid" class="apartment-photos-grid"></div>
+          <input id="apartmentPhotoInput" type="file" accept="image/*" hidden>
         </div>
       </article>
       <div class="manage-row">
@@ -203,7 +213,7 @@
     </section>
   </main>
 
-  <footer>Proyecto Manoli <span>·</span> Control de viviendas</footer>
+  <footer>Edificios Lachar <span>·</span> Control de viviendas</footer>
   <div id="toast" class="toast" role="status" aria-live="polite">Cambio guardado</div>
   <div id="iosInstallHelp" class="install-help" role="dialog" aria-modal="true" aria-labelledby="installHelpTitle" hidden>
     <div class="install-help__card">
