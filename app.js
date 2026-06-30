@@ -14,6 +14,18 @@ const STATUS = {
   rented: { label: 'Alquilado', className: 'rented', color: 'blue' }
 };
 const BUILDINGS = { building1: 'Newton', building2: 'Olimpo' };
+const NEWTON_COLOR_GROUPS = [
+  { className: 'newton-light-green', floors: [1, 2, 3, 4, 5] },
+  { className: 'newton-blue', floors: [6, 7, 8, 9, 10] },
+  { className: 'newton-yellow', floors: [11, 12, 13, 14, 15] },
+  { className: 'newton-red', floors: [16, 17, 18, 19, 20, 21, 22, 23] },
+  { className: 'newton-beige', floors: [24, 25, 26, 27, 28] },
+  { className: 'newton-medium-gray', floors: [29, 30, 31, 32, 33, 34, 35] },
+  { className: 'newton-dark-blue', floors: [36, 37, 38, 39, 40] },
+  { className: 'newton-medium-green', floors: [41, 42, 43, 44, 45, 46, 47] },
+  { className: 'newton-brown', floors: [48, 49] },
+  { className: 'newton-dark-red', floors: [50, 51] }
+];
 const STORAGE_KEY = 'manoli-viviendas-v1';
 const DIARY_DB = 'manoli-diario-v1';
 const DIARY_DB_VERSION = 2;
@@ -100,6 +112,15 @@ function buildingPercent(key) {
   const apartments = data[key];
   return apartments.length ? Math.round(apartments.reduce((sum, apt) => sum + percent(apt), 0) / apartments.length) : 0;
 }
+function newtonColorClass(building, apartmentNumber) {
+  if (building !== 'building1') return '';
+  return NEWTON_COLOR_GROUPS.find(group => group.floors.includes(Number(apartmentNumber)))?.className || '';
+}
+function apartmentDisplayName(building, apartmentNumber, short = false) {
+  const number = Number(apartmentNumber);
+  if (building === 'building1' && (number === 50 || number === 51)) return short ? `A${number}` : `Ático ${number}`;
+  return short ? `P${number}` : `Piso ${number}`;
+}
 
 function renderHome() {
   $('#summaryCards').innerHTML = Object.entries(BUILDINGS).map(([key, name]) => {
@@ -115,12 +136,12 @@ function openBuilding(key, apartmentIndex = 0) {
   showView('buildingView');
 }
 function renderTabs() {
-  $('#apartmentTabs').innerHTML = data[currentBuilding].map((apt, index) => `<button class="tab ${index === currentApartment ? 'active' : ''}" role="tab" aria-selected="${index === currentApartment}" data-apartment="${index}">Piso ${apt.number}</button>`).join('');
+  $('#apartmentTabs').innerHTML = data[currentBuilding].map((apt, index) => `<button class="tab ${newtonColorClass(currentBuilding, apt.number)} ${index === currentApartment ? 'active' : ''}" role="tab" aria-selected="${index === currentApartment}" data-apartment="${index}">${apartmentDisplayName(currentBuilding, apt.number)}</button>`).join('');
 }
 function renderBuilding() {
   const apartment = data[currentBuilding][currentApartment];
   renderTabs();
-  $('#apartmentTitle').textContent = `Piso ${apartment.number}`;
+  $('#apartmentTitle').textContent = apartmentDisplayName(currentBuilding, apartment.number);
   const state = overallLabel(apartment);
   const badge = $('#apartmentBadge');
   badge.textContent = STATUS[state].label;
@@ -142,7 +163,7 @@ function renderOverview() {
   $('#overviewBody').innerHTML = keys.flatMap(key => data[key].map((apt, index) => {
     const progress = percent(apt);
     const cells = FIELDS.map(([field, label]) => `<td class="state-cell" title="${label}: ${STATUS[apt.statuses[field]].label}"><i class="${STATUS[apt.statuses[field]].color}"></i></td>`).join('');
-    return `<tr data-building="${key}" data-apartment="${index}"><td>${BUILDINGS[key]}</td><td>P${apt.number}</td>${cells}<td><div class="mini-progress"><span>${progress}%</span><i style="--progress:${progress}%"></i></div></td></tr>`;
+    return `<tr class="${newtonColorClass(key, apt.number)}" data-building="${key}" data-apartment="${index}"><td>${BUILDINGS[key]}</td><td>${apartmentDisplayName(key, apt.number, true)}</td>${cells}<td><div class="mini-progress"><span>${progress}%</span><i style="--progress:${progress}%"></i></div></td></tr>`;
   })).join('');
 }
 
@@ -209,7 +230,7 @@ function daysInMonth(date) { return new Date(date.getFullYear(), date.getMonth()
 function monthTitle(date) { return `${MONTHS[date.getMonth()]} de ${date.getFullYear()}`; }
 function populateApartmentSelect(select, includeAll = false, building = 'building1') {
   const options = includeAll ? '<option value="all">Todos los pisos</option>' : '';
-  select.innerHTML = options + data[building].map(apartment => `<option value="${apartment.number}">Piso ${apartment.number}</option>`).join('');
+  select.innerHTML = options + data[building].map(apartment => `<option value="${apartment.number}">${apartmentDisplayName(building, apartment.number)}</option>`).join('');
 }
 
 async function renderCalendar() {
@@ -299,7 +320,7 @@ async function renderJournalList() {
     const matchesApartment = apartmentFilter === 'all' || String(entry?.apartmentNumber) === apartmentFilter;
     if (filtersActive && (!entry || !matchesBuilding || !matchesApartment)) continue;
     const preview = entry?.memo ? `${entry.memo.slice(0, 130)}${entry.memo.length > 130 ? '…' : ''}` : 'Sin memoria';
-    const location = entry?.building ? `${BUILDINGS[entry.building]} · Piso ${entry.apartmentNumber}` : 'Sin asignar';
+    const location = entry?.building ? `${BUILDINGS[entry.building]} · ${apartmentDisplayName(entry.building, entry.apartmentNumber)}` : 'Sin asignar';
     rows.push(`<tr data-date="${key}"><td>${day} ${MONTHS[monthCursor.getMonth()]}</td><td>${escapeHtml(location)}</td><td><div class="journal-photo">${entry?.photo ? `<img src="${entry.photo}" alt="Foto del día ${day}">` : 'Sin foto'}</div></td><td><div class="journal-description"><strong>${escapeHtml(entry?.tag || 'Sin etiqueta')}</strong><span>${escapeHtml(preview)}</span></div></td></tr>`);
   }
   $('#journalListBody').innerHTML = rows.length ? rows.join('') : '<tr><td colspan="4">No hay fichas que coincidan con este filtro.</td></tr>';
@@ -351,7 +372,7 @@ $('#apartmentPhotosGrid').addEventListener('click', async event => {
     return;
   }
   if (action === 'delete') {
-    if (!confirm(`¿Eliminar la imagen ${slot + 1} del Piso ${apartment.number}?`)) return;
+    if (!confirm(`¿Eliminar la imagen ${slot + 1} de ${apartmentDisplayName(currentBuilding, apartment.number)}?`)) return;
     await deleteApartmentPhoto(currentBuilding, apartment.number, slot);
     await renderApartmentPhotos();
     showToastMessage('Imagen eliminada');
@@ -387,7 +408,7 @@ $('#addApartment').addEventListener('click', () => {
 $('#removeApartment').addEventListener('click', () => {
   const apartments = data[currentBuilding];
   if (apartments.length <= 51) return alert('Deben mantenerse al menos los 51 pisos del edificio.');
-  if (!confirm(`¿Eliminar el Piso ${apartments[currentApartment].number}?`)) return;
+  if (!confirm(`¿Eliminar ${apartmentDisplayName(currentBuilding, apartments[currentApartment].number)}?`)) return;
   apartments.splice(currentApartment, 1);
   currentApartment = Math.max(0, currentApartment - 1);
   save();
