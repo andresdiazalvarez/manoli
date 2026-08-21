@@ -493,6 +493,7 @@ async function openJournalList() {
 }
 async function openDownloadView() {
   await renderSavedProjects();
+  $('#downloadView').classList.toggle('download-view--dotation', activeArea === 'dotation');
   showView('downloadView');
 }
 function openSituationHome() {
