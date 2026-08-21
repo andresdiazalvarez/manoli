@@ -1,4 +1,4 @@
-const CACHE_NAME = 'manoli-app-v8';
+const CACHE_NAME = 'manoli-app-v6';
 const APP_FILES = [
   './',
   './index.html',

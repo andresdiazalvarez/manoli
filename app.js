@@ -28,7 +28,7 @@ const NEWTON_COLOR_GROUPS = [
 ];
 const STORAGE_KEY = 'manoli-viviendas-v1';
 const DIARY_DB = 'manoli-diario-v1';
-const DIARY_DB_VERSION = 3;
+const DIARY_DB_VERSION = 2;
 const APARTMENT_PHOTO_SLOTS = 4;
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -173,7 +173,6 @@ function openDiaryDatabase() {
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains('entries')) request.result.createObjectStore('entries', { keyPath: 'date' });
       if (!request.result.objectStoreNames.contains('apartmentPhotos')) request.result.createObjectStore('apartmentPhotos', { keyPath: 'id' });
-      if (!request.result.objectStoreNames.contains('savedProjects')) request.result.createObjectStore('savedProjects', { keyPath: 'id' });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -197,7 +196,6 @@ const getApartmentPhoto = (building, apartmentNumber, slot) => diaryOperation('r
 const putApartmentPhoto = photo => diaryOperation('readwrite', store => store.put(photo), 'apartmentPhotos');
 const deleteApartmentPhoto = (building, apartmentNumber, slot) => diaryOperation('readwrite', store => store.delete(apartmentPhotoId(building, apartmentNumber, slot)), 'apartmentPhotos');
 const getAllFromStore = storeName => diaryOperation('readonly', store => store.getAll(), storeName);
-const putSavedProject = project => diaryOperation('readwrite', store => store.put(project), 'savedProjects');
 async function replaceStore(storeName, records = []) {
   const database = await openDiaryDatabase();
   return new Promise((resolve, reject) => {
@@ -343,10 +341,6 @@ async function openJournalList() {
   await renderJournalList();
   showView('journalListView');
 }
-async function openDownloadView() {
-  await renderSavedProjects();
-  showView('downloadView');
-}
 async function buildProjectBackup() {
   return {
     app: 'Edificios Lachar',
@@ -358,57 +352,6 @@ async function buildProjectBackup() {
     diaryEntries: await getAllFromStore('entries'),
     apartmentPhotos: await getAllFromStore('apartmentPhotos')
   };
-}
-function savedProjectDate(value) {
-  try { return new Date(value).toLocaleString('es-ES'); }
-  catch { return 'Fecha no disponible'; }
-}
-async function renderSavedProjects() {
-  const list = $('#savedProjectsList');
-  const projects = (await getAllFromStore('savedProjects')).sort((a, b) => Number(a.number) - Number(b.number));
-  if (!projects.length) {
-    list.innerHTML = '<p class="saved-projects-empty">Todavía no hay ningún proyecto guardado en este móvil.</p>';
-    return;
-  }
-  list.innerHTML = projects.map(project => `
-    <div class="saved-project-item" data-saved-project="${escapeHtml(project.id)}">
-      <div>
-        <strong>Proyecto guardado ${project.number}</strong>
-        <span>Actualizado: ${escapeHtml(savedProjectDate(project.updatedAt || project.createdAt))}</span>
-      </div>
-      <button type="button" data-saved-project-action="modify">Modificar</button>
-    </div>
-  `).join('');
-}
-async function saveProjectSnapshot(existingProject = null) {
-  const projects = await getAllFromStore('savedProjects');
-  const backup = await buildProjectBackup();
-  const now = new Date().toISOString();
-  const project = existingProject || {
-    id: `project-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    number: projects.reduce((max, item) => Math.max(max, Number(item.number) || 0), 0) + 1,
-    createdAt: now
-  };
-  project.backup = backup;
-  project.updatedAt = now;
-  await putSavedProject(project);
-  await renderSavedProjects();
-  showToastMessage(existingProject ? 'Proyecto modificado' : 'Proyecto guardado');
-}
-async function saveNewProject() {
-  try { await saveProjectSnapshot(); }
-  catch { alert('No se ha podido guardar el proyecto en este dispositivo.'); }
-}
-async function modifySavedProject(id) {
-  try {
-    const projects = await getAllFromStore('savedProjects');
-    const project = projects.find(item => item.id === id);
-    if (!project) return;
-    if (!confirm(`¿Modificar el Proyecto guardado ${project.number} con los datos actuales de la app?`)) return;
-    await saveProjectSnapshot(project);
-  } catch {
-    alert('No se ha podido modificar este proyecto guardado.');
-  }
 }
 function formatExportDate() {
   const now = new Date();
@@ -517,15 +460,9 @@ $('#buildingSelect').addEventListener('change', event => {
 $('#overviewBtn').addEventListener('click', () => { $('#overviewBuilding').value = 'all'; renderOverview(); showView('overviewView'); });
 $('#showBuildingOverview').addEventListener('click', () => { $('#overviewBuilding').value = currentBuilding; renderOverview(); showView('overviewView'); });
 $('#calendarBtn').addEventListener('click', openCalendar);
-$('#downloadMenuBtn').addEventListener('click', openDownloadView);
-$('#saveProjectBtn').addEventListener('click', saveNewProject);
+$('#downloadMenuBtn').addEventListener('click', () => showView('downloadView'));
 $('#exportProjectBtn').addEventListener('click', exportProject);
 $('#importProjectInput').addEventListener('change', importProjectFile);
-$('#savedProjectsList').addEventListener('click', event => {
-  const button = event.target.closest('[data-saved-project-action]');
-  const item = event.target.closest('[data-saved-project]');
-  if (button && item) modifySavedProject(item.dataset.savedProject);
-});
 document.querySelectorAll('[data-go-home]').forEach(button => button.addEventListener('click', () => { renderHome(); showView('homeView'); }));
 $('#apartmentTabs').addEventListener('click', event => {
   const tab = event.target.closest('[data-apartment]');
