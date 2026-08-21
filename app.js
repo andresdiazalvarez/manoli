@@ -28,7 +28,7 @@ const NEWTON_COLOR_GROUPS = [
 ];
 const STORAGE_KEY = 'manoli-viviendas-v1';
 const DIARY_DB = 'manoli-diario-v1';
-const DIARY_DB_VERSION = 2;
+const DIARY_DB_VERSION = 3;
 const APARTMENT_PHOTO_SLOTS = 4;
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -173,6 +173,7 @@ function openDiaryDatabase() {
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains('entries')) request.result.createObjectStore('entries', { keyPath: 'date' });
       if (!request.result.objectStoreNames.contains('apartmentPhotos')) request.result.createObjectStore('apartmentPhotos', { keyPath: 'id' });
+      if (!request.result.objectStoreNames.contains('savedProjects')) request.result.createObjectStore('savedProjects', { keyPath: 'id' });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -195,6 +196,19 @@ const apartmentPhotoId = (building, apartmentNumber, slot) => `${building}-${apa
 const getApartmentPhoto = (building, apartmentNumber, slot) => diaryOperation('readonly', store => store.get(apartmentPhotoId(building, apartmentNumber, slot)), 'apartmentPhotos');
 const putApartmentPhoto = photo => diaryOperation('readwrite', store => store.put(photo), 'apartmentPhotos');
 const deleteApartmentPhoto = (building, apartmentNumber, slot) => diaryOperation('readwrite', store => store.delete(apartmentPhotoId(building, apartmentNumber, slot)), 'apartmentPhotos');
+const getAllFromStore = storeName => diaryOperation('readonly', store => store.getAll(), storeName);
+const putSavedProject = project => diaryOperation('readwrite', store => store.put(project), 'savedProjects');
+async function replaceStore(storeName, records = []) {
+  const database = await openDiaryDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    store.clear();
+    records.forEach(record => store.put(record));
+    transaction.oncomplete = () => { database.close(); resolve(); };
+    transaction.onerror = () => { database.close(); reject(transaction.error); };
+  });
+}
 async function getMonthEntries(date) {
   const prefix = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   const entries = await diaryOperation('readonly', store => store.getAll());
@@ -329,6 +343,173 @@ async function openJournalList() {
   await renderJournalList();
   showView('journalListView');
 }
+async function openDownloadView() {
+  await renderSavedProjects();
+  showView('downloadView');
+}
+async function buildProjectBackup() {
+  return {
+    app: 'Edificios Lachar',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    storageKey: STORAGE_KEY,
+    diaryDatabase: DIARY_DB,
+    data,
+    diaryEntries: await getAllFromStore('entries'),
+    apartmentPhotos: await getAllFromStore('apartmentPhotos')
+  };
+}
+function savedProjectDate(value) {
+  try { return new Date(value).toLocaleString('es-ES'); }
+  catch { return 'Fecha no disponible'; }
+}
+async function renderSavedProjects() {
+  const list = $('#savedProjectsList');
+  const projects = (await getAllFromStore('savedProjects')).sort((a, b) => Number(a.number) - Number(b.number));
+  if (!projects.length) {
+    list.innerHTML = '<p class="saved-projects-empty">Todavía no hay ningún proyecto guardado en este móvil.</p>';
+    return;
+  }
+  list.innerHTML = projects.map(project => `
+    <div class="saved-project-item" data-saved-project="${escapeHtml(project.id)}">
+      <div>
+        <strong>Proyecto guardado ${project.number}</strong>
+        <span>Actualizado: ${escapeHtml(savedProjectDate(project.updatedAt || project.createdAt))}</span>
+      </div>
+      <button type="button" data-saved-project-action="modify">Modificar</button>
+    </div>
+  `).join('');
+}
+async function saveProjectSnapshot(existingProject = null) {
+  const projects = await getAllFromStore('savedProjects');
+  const backup = await buildProjectBackup();
+  const now = new Date().toISOString();
+  const project = existingProject || {
+    id: `project-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    number: projects.reduce((max, item) => Math.max(max, Number(item.number) || 0), 0) + 1,
+    createdAt: now
+  };
+  project.backup = backup;
+  project.updatedAt = now;
+  await putSavedProject(project);
+  await renderSavedProjects();
+  showToastMessage(existingProject ? 'Proyecto modificado' : 'Proyecto guardado');
+}
+async function saveNewProject() {
+  try { await saveProjectSnapshot(); }
+  catch { alert('No se ha podido guardar el proyecto en este dispositivo.'); }
+}
+async function modifySavedProject(id) {
+  try {
+    const projects = await getAllFromStore('savedProjects');
+    const project = projects.find(item => item.id === id);
+    if (!project) return;
+    if (!confirm(`¿Modificar el Proyecto guardado ${project.number} con los datos actuales de la app?`)) return;
+    await saveProjectSnapshot(project);
+  } catch {
+    alert('No se ha podido modificar este proyecto guardado.');
+  }
+}
+function formatExportDate() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+function statusLabel(value) {
+  return STATUS[value]?.label || value || '';
+}
+function makeExcelBackupHtml(backup) {
+  const apartmentRows = Object.entries(backup.data).flatMap(([building, apartments]) => apartments.map(apartment => {
+    const statuses = FIELDS.map(([field]) => statusLabel(apartment.statuses?.[field]));
+    return `<tr><td>${escapeHtml(BUILDINGS[building] || building)}</td><td>${escapeHtml(apartmentDisplayName(building, apartment.number))}</td>${statuses.map(status => `<td>${escapeHtml(status)}</td>`).join('')}<td>${escapeHtml(apartment.notes || '')}</td></tr>`;
+  })).join('');
+  const diaryRows = backup.diaryEntries.map(entry => `<tr><td>${escapeHtml(entry.date || '')}</td><td>${escapeHtml(BUILDINGS[entry.building] || entry.building || '')}</td><td>${escapeHtml(entry.apartmentNumber ? apartmentDisplayName(entry.building, entry.apartmentNumber) : '')}</td><td>${escapeHtml(entry.tag || '')}</td><td>${escapeHtml(entry.memo || '')}</td><td>${entry.photo ? 'Sí' : 'No'}</td></tr>`).join('');
+  const apartmentPhotoRows = backup.apartmentPhotos.map(photo => `<tr><td>${escapeHtml(BUILDINGS[photo.building] || photo.building || '')}</td><td>${escapeHtml(apartmentDisplayName(photo.building, photo.apartmentNumber))}</td><td>${Number(photo.slot) + 1}</td><td>${photo.photo ? 'Sí' : 'No'}</td></tr>`).join('');
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; }
+    table { border-collapse: collapse; margin-bottom: 28px; }
+    th { background: #4b2918; color: white; }
+    th, td { border: 1px solid #b9a48e; padding: 6px 8px; vertical-align: top; }
+    h1, h2 { color: #4b2918; }
+    .backup-json { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Edificios Lachar</h1>
+  <p>Copia exportada el ${escapeHtml(new Date(backup.exportedAt).toLocaleString('es-ES'))}</p>
+  <h2>Estados y observaciones</h2>
+  <table>
+    <thead><tr><th>Edificio</th><th>Piso</th>${FIELDS.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join('')}<th>Notas u observaciones</th></tr></thead>
+    <tbody>${apartmentRows}</tbody>
+  </table>
+  <h2>Diario</h2>
+  <table>
+    <thead><tr><th>Fecha</th><th>Edificio</th><th>Piso</th><th>Etiqueta</th><th>Memoria</th><th>Foto</th></tr></thead>
+    <tbody>${diaryRows || '<tr><td colspan="6">Sin fichas diarias</td></tr>'}</tbody>
+  </table>
+  <h2>Imágenes de pisos</h2>
+  <table>
+    <thead><tr><th>Edificio</th><th>Piso</th><th>Hueco</th><th>Imagen</th></tr></thead>
+    <tbody>${apartmentPhotoRows || '<tr><td colspan="4">Sin imágenes de pisos</td></tr>'}</tbody>
+  </table>
+  <pre id="edificiosLacharBackupData" class="backup-json">${escapeHtml(JSON.stringify(backup))}</pre>
+</body>
+</html>`;
+}
+function downloadTextFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+async function exportProject() {
+  try {
+    const backup = await buildProjectBackup();
+    const html = makeExcelBackupHtml(backup);
+    downloadTextFile(`edificios-lachar-${formatExportDate()}.xls`, html, 'application/vnd.ms-excel;charset=utf-8');
+    showToastMessage('Proyecto descargado');
+  } catch {
+    alert('No se ha podido descargar el proyecto. Inténtalo de nuevo.');
+  }
+}
+function extractBackupFromFile(text) {
+  const trimmed = text.trim();
+  if (trimmed.startsWith('{')) return JSON.parse(trimmed);
+  const documentCopy = new DOMParser().parseFromString(text, 'text/html');
+  const backupNode = documentCopy.querySelector('#edificiosLacharBackupData');
+  if (!backupNode) throw new Error('Archivo no válido');
+  return JSON.parse(backupNode.textContent);
+}
+async function importProjectFile(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const backup = extractBackupFromFile(text);
+    if (backup?.app !== 'Edificios Lachar' || !backup.data) throw new Error('Archivo no válido');
+    if (!confirm('Esto sustituirá los datos de este dispositivo por los del archivo elegido. ¿Quieres continuar?')) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(backup.data));
+    await replaceStore('entries', Array.isArray(backup.diaryEntries) ? backup.diaryEntries : []);
+    await replaceStore('apartmentPhotos', Array.isArray(backup.apartmentPhotos) ? backup.apartmentPhotos : []);
+    data = loadData();
+    currentBuilding = 'building1';
+    currentApartment = 0;
+    selectedDateKey = '';
+    currentPhoto = '';
+    renderHome();
+    showView('homeView');
+    showToastMessage('Proyecto cargado');
+  } catch {
+    alert('No se ha podido cargar este archivo. Elige un Excel descargado desde esta misma app.');
+  } finally {
+    event.target.value = '';
+  }
+}
 
 $('#buildingSelect').addEventListener('change', event => {
   if (event.target.value) { openBuilding(event.target.value); event.target.value = ''; }
@@ -336,6 +517,15 @@ $('#buildingSelect').addEventListener('change', event => {
 $('#overviewBtn').addEventListener('click', () => { $('#overviewBuilding').value = 'all'; renderOverview(); showView('overviewView'); });
 $('#showBuildingOverview').addEventListener('click', () => { $('#overviewBuilding').value = currentBuilding; renderOverview(); showView('overviewView'); });
 $('#calendarBtn').addEventListener('click', openCalendar);
+$('#downloadMenuBtn').addEventListener('click', openDownloadView);
+$('#saveProjectBtn').addEventListener('click', saveNewProject);
+$('#exportProjectBtn').addEventListener('click', exportProject);
+$('#importProjectInput').addEventListener('change', importProjectFile);
+$('#savedProjectsList').addEventListener('click', event => {
+  const button = event.target.closest('[data-saved-project-action]');
+  const item = event.target.closest('[data-saved-project]');
+  if (button && item) modifySavedProject(item.dataset.savedProject);
+});
 document.querySelectorAll('[data-go-home]').forEach(button => button.addEventListener('click', () => { renderHome(); showView('homeView'); }));
 $('#apartmentTabs').addEventListener('click', event => {
   const tab = event.target.closest('[data-apartment]');

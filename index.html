@@ -50,6 +50,9 @@
           <button id="calendarBtn" class="button button--calendar" type="button">
             <span class="button-icon">▣</span> Abrir calendario diario
           </button>
+          <button id="downloadMenuBtn" class="button button--download" type="button">
+            <span class="button-icon">⬇</span> Descargas
+          </button>
           <button id="installBtn" class="button button--install" type="button" hidden>
             <span class="button-icon">⇩</span> Instalar aplicación
           </button>
@@ -57,6 +60,27 @@
       </div>
 
       <div class="summary-cards" id="summaryCards"></div>
+    </section>
+
+    <section id="downloadView" class="view download-view" aria-labelledby="downloadTitle">
+      <div class="toolbar">
+        <button class="back-button back-button--cream" data-go-home type="button">← Menú inicial</button>
+      </div>
+      <article class="download-card">
+        <p class="section-kicker">Copia de seguridad</p>
+        <h2 id="downloadTitle">Guardar, descargar o cargar proyecto</h2>
+        <p>Guarda una copia en este móvil, descarga toda la información en Excel o carga ese archivo en otro móvil para dejar la app exactamente igual.</p>
+        <div class="download-actions">
+          <button id="saveProjectBtn" class="button button--save-project" type="button">Guardar proyecto</button>
+          <button id="exportProjectBtn" class="button button--download-main" type="button">Descargar todo</button>
+          <label class="button button--load-project">Cargar proyecto<input id="importProjectInput" type="file" accept=".xls,.html,.htm,.json,application/vnd.ms-excel,text/html,application/json"></label>
+        </div>
+        <div class="saved-projects-panel">
+          <h3>Proyectos guardados</h3>
+          <div id="savedProjectsList" class="saved-projects-list"></div>
+        </div>
+        <p class="download-note">Importante: al cargar un proyecto se sustituyen los datos de este dispositivo por los del archivo elegido.</p>
+      </article>
     </section>
 
     <section id="buildingView" class="view" aria-labelledby="buildingTitle">
