@@ -655,6 +655,12 @@ function writeUint16(array, value) {
 function writeUint32(array, value) {
   array.push(value & 255, (value >>> 8) & 255, (value >>> 16) & 255, (value >>> 24) & 255);
 }
+function appendBytes(target, bytes) {
+  const chunkSize = 16384;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    target.push(...bytes.slice(index, index + chunkSize));
+  }
+}
 function dosDateTime(date = new Date()) {
   const time = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
   const day = ((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
@@ -682,7 +688,9 @@ function createZip(files) {
     writeUint32(local, dataBytes.length);
     writeUint16(local, nameBytes.length);
     writeUint16(local, 0);
-    output.push(...local, ...nameBytes, ...dataBytes);
+    appendBytes(output, local);
+    appendBytes(output, nameBytes);
+    appendBytes(output, dataBytes);
     const header = [];
     writeUint32(header, 0x02014b50);
     writeUint16(header, 20);
@@ -701,11 +709,12 @@ function createZip(files) {
     writeUint16(header, 0);
     writeUint32(header, 0);
     writeUint32(header, offset);
-    central.push(...header, ...nameBytes);
+    appendBytes(central, header);
+    appendBytes(central, nameBytes);
     offset = output.length;
   });
   const centralOffset = output.length;
-  output.push(...central);
+  appendBytes(output, central);
   const end = [];
   writeUint32(end, 0x06054b50);
   writeUint16(end, 0);
@@ -715,7 +724,7 @@ function createZip(files) {
   writeUint32(end, central.length);
   writeUint32(end, centralOffset);
   writeUint16(end, 0);
-  output.push(...end);
+  appendBytes(output, end);
   return new Uint8Array(output);
 }
 function makeXlsxBackup(backup) {
