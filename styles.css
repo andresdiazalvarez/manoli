@@ -32,8 +32,19 @@ button, select { cursor: pointer; }
 .view { display: none; animation: enter .22s ease; }
 .view.active { display: block; }
 @keyframes enter { from { opacity: 0; transform: translateY(5px); } }
+.launch-view { min-height: 360px; display: none; padding: 26px; border-radius: 28px; background: linear-gradient(135deg, #d8a900 0%, #ffd91f 44%, #fff7a8 100%); box-shadow: 0 22px 70px rgba(167,125,0,.24); }
+.launch-view.active { display: grid; place-items: center; }
+.launch-card { width: min(720px, 100%); padding: clamp(28px, 6vw, 58px); border: 1px solid rgba(255,255,255,.58); border-radius: 26px; background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,247,168,.24)); box-shadow: 0 22px 55px rgba(107,78,0,.2); text-align: center; backdrop-filter: blur(5px); }
+.launch-card h2 { color: #392d00; }
+.launch-card p:not(.section-kicker) { margin: 0 auto; max-width: 520px; color: #5f4a00; line-height: 1.55; }
+.launch-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 30px; }
+.button--launch-situation { color: white; background: linear-gradient(135deg, #18322d, #2f8a5e); }
+.button--launch-dotation { color: white; background: linear-gradient(135deg, #4d0f8b, #a02cff); }
+#homeView { padding: 22px; border-radius: 24px; background: radial-gradient(circle at 8% 8%, rgba(255,255,255,.86) 0%, rgba(255,255,255,.34) 24%, transparent 45%), linear-gradient(135deg, #fffaf0 0%, #f5e9d2 42%, #e8d3ae 100%); box-shadow: 0 18px 55px rgba(116,84,51,.15); }
+.dotation-view { padding: 22px; border-radius: 24px; background: radial-gradient(circle at 8% 8%, rgba(255,255,255,.38) 0%, transparent 34%), linear-gradient(135deg, #4d0f8b 0%, #8b2cff 45%, #eadcff 100%); box-shadow: 0 20px 60px rgba(85,24,143,.2); }
 .welcome, .apartment-card, .overview-table-wrap { background: var(--card); border: 1px solid rgba(255,255,255,.8); box-shadow: var(--shadow); border-radius: 18px; }
-.welcome { padding: 32px; display: grid; grid-template-columns: 1.35fr 1fr; gap: 38px; }
+.welcome { padding: 32px; display: grid; grid-template-columns: 1.35fr 1fr; gap: 38px; background: linear-gradient(135deg, rgba(255,253,248,.96) 0%, rgba(249,235,207,.94) 100%); border-color: rgba(255,255,255,.96); }
+.welcome--dotation { background: linear-gradient(135deg, rgba(255,255,255,.94) 0%, rgba(238,220,255,.94) 100%); border-color: rgba(255,255,255,.7); }
 h2 { margin: 0 0 8px; font: 600 clamp(27px, 4vw, 38px)/1.1 Georgia, serif; }
 .welcome p:not(.section-kicker), .page-heading p:not(.section-kicker) { margin: 0; color: var(--muted); line-height: 1.55; }
 .section-kicker { color: var(--green); }
@@ -48,10 +59,16 @@ select { width: 100%; color: var(--ink); background: white; border: 1px solid #c
 .button--install { color: var(--ink); background: var(--green-soft); border: 1px solid #b8d9c5; }
 .button--calendar { color: var(--ink); background: #f0dfb7; border: 1px solid #dfc98f; }
 .button--download { color: #3a2115; background: #d8ad7b; border: 1px solid #bd8c59; }
+.button--dotation-dark { color: white; background: linear-gradient(135deg, #4d0f8b, #8b2cff); }
+.button--dotation-light { color: #35105f; background: #f7efff; border: 1px solid #d9b8ff; }
+.button--dotation-calendar { color: #35105f; background: linear-gradient(135deg, #f0dcff, #d5aaff); border: 1px solid #bd83f2; }
+.button--dotation-download { color: white; background: linear-gradient(135deg, #6b1fb1, #b65cff); border: 1px solid #c988ff; }
 .button-icon { margin-right: 7px; }
 
 .summary-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 18px; }
-.summary-card { border-radius: 15px; padding: 22px; background: rgba(255,253,248,.75); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+.summary-card { border-radius: 15px; padding: 22px; background: linear-gradient(135deg, rgba(255,253,248,.88) 0%, rgba(244,225,190,.82) 100%); border: 1px solid rgba(213,190,151,.68); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 12px 28px rgba(116,84,51,.1); }
+.summary-card--dotation { background: linear-gradient(135deg, rgba(255,255,255,.9) 0%, rgba(232,208,255,.88) 100%); border-color: rgba(174,116,238,.45); }
+.summary-card--dotation strong { color: #8b2cff; }
 .summary-card h3 { margin: 0 0 5px; font: 600 22px Georgia, serif; }
 .summary-card p { margin: 0; color: var(--muted); font-size: 14px; }
 .summary-card strong { font-size: 28px; color: var(--green); }
@@ -101,6 +118,13 @@ select { width: 100%; color: var(--ink); background: white; border: 1px solid #c
 .status-badge.in-process { background: var(--yellow-soft); color: #89620d; }
 .status-badge.done { background: var(--green-soft); color: #176740; }
 .status-badge.rented { background: var(--blue-soft); color: #245c9f; }
+.status-badge--dotation { background: #eadcff; color: #5e189e; }
+.page-heading--dotation { color: white; }
+.page-heading--dotation .section-kicker { color: #f0dcff; }
+.page-heading--dotation p:not(.section-kicker) { color: rgba(255,255,255,.82); }
+.progress-ring--dotation::before { background: #f6efff; }
+.door-icon--dotation { background: #eadcff; color: #7b22d4; }
+.apartment-card__head--dotation { background: linear-gradient(135deg, #fbf7ff, #eadcff); }
 .status-fields { padding: 24px 25px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 17px 24px; }
 .field label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; font-weight: 700; }
 .field-icon { color: var(--green); font-size: 17px; }
@@ -127,6 +151,20 @@ textarea { width: 100%; resize: vertical; border: 1px solid #cfd4d1; border-radi
 .apartment-photo-actions button:disabled { opacity: .42; cursor: not-allowed; }
 .manage-row { display: flex; justify-content: space-between; padding: 12px 5px; }
 .text-button--danger { color: #a4423a; }
+.dotation-card { overflow: hidden; border: 1px solid rgba(255,255,255,.82); border-radius: 18px; background: rgba(255,255,255,.95); box-shadow: var(--shadow); }
+.dotation-table-wrap { overflow: auto; }
+.dotation-table { width: 100%; min-width: 760px; border-collapse: collapse; }
+.dotation-table th { padding: 15px 12px; color: white; background: linear-gradient(135deg, #4d0f8b, #8b2cff); text-align: left; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
+.dotation-table td { border-top: 1px solid #e1d3ef; padding: 10px 12px; vertical-align: middle; }
+.dotation-table tr:nth-child(even) { background: #fbf7ff; }
+.dotation-name { width: 35%; font-weight: 800; color: #35105f; }
+.dotation-check { min-width: 78px; border: 0; border-radius: 999px; padding: 10px 16px; font-weight: 900; }
+.dotation-check.no { color: #7c244b; background: #ffd9e8; box-shadow: inset 0 0 0 1px #f4aeca; }
+.dotation-check.yes { color: #053d1f; background: #48ff84; box-shadow: inset 0 0 0 1px #20c95b; }
+.dotation-note { min-width: 260px; resize: vertical; border-color: #d8c6e8; background: white; }
+.dotation-overview-wrap { border-color: rgba(255,255,255,.76); }
+.dotation-overview-table th { color: white; background: linear-gradient(135deg, #4d0f8b, #8b2cff); }
+.mini-progress--dotation i::after { background: #8b2cff; }
 
 .compact-filter { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; font-weight: 700; }
 .compact-filter select { min-width: 145px; padding: 9px 35px 9px 11px; }
@@ -211,14 +249,23 @@ textarea { width: 100%; resize: vertical; border: 1px solid #cfd4d1; border-radi
 .journal-description strong { display: block; margin-bottom: 4px; }
 .journal-description span { color: var(--muted); font-size: 12px; }
 .download-view { margin-top: -4px; padding: 22px; border-radius: 22px; background: linear-gradient(135deg, #4b2918 0%, #8a5a35 42%, #d7ad7d 100%); box-shadow: var(--shadow); }
-.download-card { max-width: 760px; margin: 0 auto; padding: clamp(26px, 5vw, 52px); border: 1px solid rgba(255,255,255,.28); border-radius: 22px; color: #fff7ec; background: rgba(58, 32, 18, .28); box-shadow: 0 24px 60px rgba(37,20,10,.22); backdrop-filter: blur(4px); }
+.download-card { max-width: 820px; margin: 0 auto; padding: clamp(26px, 5vw, 52px); border: 1px solid rgba(255,255,255,.28); border-radius: 22px; color: #fff7ec; background: rgba(58, 32, 18, .28); box-shadow: 0 24px 60px rgba(37,20,10,.22); backdrop-filter: blur(4px); }
 .download-card .section-kicker { color: #ffe1bc; }
 .download-card h2 { color: white; }
 .download-card p { color: rgba(255,247,236,.9); line-height: 1.6; }
-.download-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 28px 0 14px; }
-.button--download-main { color: #3a2115; background: #f0c38e; border: 1px solid rgba(255,255,255,.38); }
-.button--download-light { display: grid; place-items: center; text-align: center; color: #fff7ec; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.48); }
-.button--download-light input { display: none; }
+.download-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px 0 18px; }
+.button--save-project { color: #352014; background: #e4b77d; border: 1px solid rgba(255,255,255,.42); }
+.button--download-main { color: #fff7ec; background: #7a4727; border: 1px solid rgba(255,255,255,.34); }
+.button--load-project { display: grid; place-items: center; text-align: center; color: #3a2115; background: #f2d2a8; border: 1px solid rgba(255,255,255,.52); }
+.button--load-project input { display: none; }
+.saved-projects-panel { margin: 20px 0 14px; padding: 16px; border: 1px solid rgba(255,255,255,.3); border-radius: 16px; background: rgba(255,255,255,.12); }
+.saved-projects-panel h3 { margin: 0 0 12px; font: 600 22px Georgia, serif; color: #fff7ec; }
+.saved-projects-list { display: grid; gap: 10px; }
+.saved-project-item { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px; border-radius: 12px; color: #3a2115; background: rgba(255,247,236,.92); }
+.saved-project-item strong { display: block; margin-bottom: 3px; }
+.saved-project-item span { color: #74543b; font-size: 12px; }
+.saved-project-item button { border: 0; border-radius: 9px; padding: 10px 12px; color: #fff7ec; background: #7a4727; font-weight: 750; }
+.saved-projects-empty { margin: 0; color: rgba(255,247,236,.82); font-size: 14px; }
 .download-note { margin: 0; font-size: 13px; }
 footer { text-align: center; padding: 6px 20px 28px; color: #7d8582; font-size: 12px; }
 footer span { margin: 0 6px; }
@@ -237,6 +284,7 @@ footer span { margin: 0 6px; }
   .hero__content { align-items: flex-end; padding-bottom: 43px; }
   .shell { width: min(100% - 24px, 1120px); margin-top: -22px; }
   .welcome { grid-template-columns: 1fr; gap: 24px; padding: 24px 20px; }
+  .launch-actions { grid-template-columns: 1fr; }
   .summary-cards, .status-fields { grid-template-columns: 1fr; }
   .summary-card { padding: 18px; }
   .page-heading { align-items: flex-start; }
@@ -250,6 +298,7 @@ footer span { margin: 0 6px; }
   .legend { justify-content: flex-start; }
   .day-card { grid-template-columns: 1fr; }
   .download-actions { grid-template-columns: 1fr; }
+  .saved-project-item { grid-template-columns: 1fr; }
   .photo-panel { border-right: 0; border-bottom: 1px solid var(--line); }
   .journal-filters { grid-template-columns: 1fr 1fr; }
   .journal-filters .button { grid-column: 1 / -1; }
@@ -264,6 +313,7 @@ footer span { margin: 0 6px; }
   .progress-ring { width: 72px; height: 72px; }
   .progress-ring strong { font-size: 18px; }
   .apartment-card__head { align-items: flex-start; }
+  .launch-view, #homeView, .dotation-view { padding: 14px; }
   .calendar-grid { gap: 4px; padding-left: 8px; padding-right: 8px; }
   .calendar-day { min-height: 53px; padding: 7px; }
   .calendar-weekdays { padding-left: 8px; padding-right: 8px; }

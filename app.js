@@ -14,6 +14,58 @@ const STATUS = {
   rented: { label: 'Alquilado', className: 'rented', color: 'blue' }
 };
 const BUILDINGS = { building1: 'Newton', building2: 'Olimpo' };
+const DOTATION_ITEMS = [
+  'Aparador',
+  'Cortinas del salón',
+  'Cortinas del dormitorio',
+  'Sillón',
+  'Sillas',
+  'Mesa',
+  'Mesa pequeña',
+  'Jarrón',
+  'Flores',
+  'Cuadro grande',
+  'Cuadros de cocina',
+  'Mesitas de dormitorio',
+  'Lamparitas',
+  'Lámparas de pie',
+  'Espejo de baño',
+  'Espejo de dormitorio',
+  'Armario',
+  'Cama',
+  'Colchón',
+  'Funda',
+  'Sábanas',
+  'Colcha',
+  'Cojines',
+  'Frigorífico',
+  'Lavadora',
+  'Microondas',
+  'Platero',
+  'Sartén',
+  'Vajilla',
+  'Vasos',
+  'Olla',
+  'Escurridor',
+  'Tabla de cortar',
+  'Tijeras de cocina',
+  'Pala de madera',
+  'Cuchillo',
+  'Cubiertos',
+  'Aire acondicionado',
+  'Bombillas',
+  'Cepillo',
+  'Recogedor',
+  'Cubo de basura',
+  'Tendedero',
+  'Cesto de ropa',
+  'Mueble',
+  'Estropajo',
+  'Paño de cocina',
+  'Televisión',
+  'Cable de antena',
+  'Mandos de aire acondicionado y televisión'
+].map((label, index) => ({ key: `item${index + 1}`, label }));
 const NEWTON_COLOR_GROUPS = [
   { className: 'newton-light-green', floors: [1, 2, 3, 4, 5] },
   { className: 'newton-blue', floors: [6, 7, 8, 9, 10] },
@@ -27,18 +79,28 @@ const NEWTON_COLOR_GROUPS = [
   { className: 'newton-dark-red', floors: [50, 51] }
 ];
 const STORAGE_KEY = 'manoli-viviendas-v1';
+const DOTATION_STORAGE_KEY = 'lachar-dotacion-v1';
 const DIARY_DB = 'manoli-diario-v1';
-const DIARY_DB_VERSION = 2;
+const DIARY_DB_VERSION = 3;
 const APARTMENT_PHOTO_SLOTS = 4;
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 function freshApartment(number) {
   return { number, notes: '', statuses: Object.fromEntries(FIELDS.map(([key]) => [key, 'pending'])) };
 }
+function freshDotationApartment(number) {
+  return { number, items: Object.fromEntries(DOTATION_ITEMS.map(item => [item.key, { installed: false, notes: '' }])) };
+}
 function defaultData() {
   return {
     building1: Array.from({ length: 51 }, (_, i) => freshApartment(i + 1)),
     building2: Array.from({ length: 51 }, (_, i) => freshApartment(i + 1))
+  };
+}
+function defaultDotationData() {
+  return {
+    building1: Array.from({ length: 51 }, (_, i) => freshDotationApartment(i + 1)),
+    building2: Array.from({ length: 51 }, (_, i) => freshDotationApartment(i + 1))
   };
 }
 function normalizeData(saved) {
@@ -65,16 +127,45 @@ function loadData() {
   try { return normalizeData(JSON.parse(localStorage.getItem(STORAGE_KEY))); }
   catch { return defaultData(); }
 }
+function normalizeDotationData(saved) {
+  const normalized = saved && typeof saved === 'object' ? saved : defaultDotationData();
+  Object.keys(BUILDINGS).forEach(building => {
+    if (!Array.isArray(normalized[building])) normalized[building] = [];
+    normalized[building].forEach((apartment, index) => {
+      apartment.number = Number(apartment.number) || index + 1;
+      apartment.items = apartment.items || {};
+      DOTATION_ITEMS.forEach(item => {
+        if (!apartment.items[item.key] || typeof apartment.items[item.key] !== 'object') apartment.items[item.key] = { installed: false, notes: '' };
+        apartment.items[item.key].installed = Boolean(apartment.items[item.key].installed);
+        apartment.items[item.key].notes = apartment.items[item.key].notes || '';
+      });
+    });
+    const numbers = new Set(normalized[building].map(apartment => Number(apartment.number)));
+    for (let number = 1; number <= 51; number += 1) {
+      if (!numbers.has(number)) normalized[building].push(freshDotationApartment(number));
+    }
+    normalized[building].sort((a, b) => Number(a.number) - Number(b.number));
+  });
+  return normalized;
+}
+function loadDotationData() {
+  try { return normalizeDotationData(JSON.parse(localStorage.getItem(DOTATION_STORAGE_KEY))); }
+  catch { return defaultDotationData(); }
+}
 
 let data = loadData();
+let dotationData = loadDotationData();
 let currentBuilding = 'building1';
 let currentApartment = 0;
+let currentDotationBuilding = 'building1';
+let currentDotationApartment = 0;
 let toastTimer;
 let deferredInstallPrompt = null;
 let monthCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedDateKey = '';
 let currentPhoto = '';
 let selectedApartmentPhotoSlot = 0;
+let activeArea = 'situation';
 
 const $ = selector => document.querySelector(selector);
 const views = [...document.querySelectorAll('.view')];
@@ -85,6 +176,10 @@ function escapeHtml(value = '') {
 function save(showToast = true) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   if (showToast) showToastMessage('Cambio guardado');
+}
+function saveDotation(showToast = true) {
+  localStorage.setItem(DOTATION_STORAGE_KEY, JSON.stringify(dotationData));
+  if (showToast) showToastMessage('Dotación guardada');
 }
 function showToastMessage(message) {
   const toast = $('#toast');
@@ -112,6 +207,14 @@ function buildingPercent(key) {
   const apartments = data[key];
   return apartments.length ? Math.round(apartments.reduce((sum, apt) => sum + percent(apt), 0) / apartments.length) : 0;
 }
+function dotationStats(apartment) {
+  const installed = DOTATION_ITEMS.filter(item => apartment.items?.[item.key]?.installed).length;
+  return { installed, total: DOTATION_ITEMS.length, pending: DOTATION_ITEMS.length - installed, percent: Math.round((installed / DOTATION_ITEMS.length) * 100) };
+}
+function dotationBuildingPercent(key) {
+  const apartments = dotationData[key];
+  return apartments.length ? Math.round(apartments.reduce((sum, apt) => sum + dotationStats(apt).percent, 0) / apartments.length) : 0;
+}
 function newtonColorClass(building, apartmentNumber) {
   if (building !== 'building1') return '';
   return NEWTON_COLOR_GROUPS.find(group => group.floors.includes(Number(apartmentNumber)))?.className || '';
@@ -128,15 +231,33 @@ function renderHome() {
     return `<article class="summary-card"><div><h3>${name}</h3><p>${ready} de ${data[key].length} pisos listos</p></div><strong>${buildingPercent(key)}%</strong></article>`;
   }).join('');
 }
+function renderDotationHome() {
+  $('#dotationSummaryCards').innerHTML = Object.entries(BUILDINGS).map(([key, name]) => {
+    const complete = dotationData[key].filter(apt => dotationStats(apt).installed === DOTATION_ITEMS.length).length;
+    return `<article class="summary-card summary-card--dotation"><div><h3>${name}</h3><p>${complete} de ${dotationData[key].length} pisos con dotación completa</p></div><strong>${dotationBuildingPercent(key)}%</strong></article>`;
+  }).join('');
+}
 function openBuilding(key, apartmentIndex = 0) {
+  activeArea = 'situation';
   currentBuilding = key;
   currentApartment = Math.min(apartmentIndex, Math.max(0, data[key].length - 1));
   $('#buildingTitle').textContent = BUILDINGS[key];
   renderBuilding();
   showView('buildingView');
 }
+function openDotationBuilding(key, apartmentIndex = 0) {
+  activeArea = 'dotation';
+  currentDotationBuilding = key;
+  currentDotationApartment = Math.min(apartmentIndex, Math.max(0, dotationData[key].length - 1));
+  $('#dotationBuildingTitle').textContent = BUILDINGS[key];
+  renderDotationBuilding();
+  showView('dotationBuildingView');
+}
 function renderTabs() {
   $('#apartmentTabs').innerHTML = data[currentBuilding].map((apt, index) => `<button class="tab ${newtonColorClass(currentBuilding, apt.number)} ${index === currentApartment ? 'active' : ''}" role="tab" aria-selected="${index === currentApartment}" data-apartment="${index}">${apartmentDisplayName(currentBuilding, apt.number)}</button>`).join('');
+}
+function renderDotationTabs() {
+  $('#dotationApartmentTabs').innerHTML = dotationData[currentDotationBuilding].map((apt, index) => `<button class="tab tab--dotation ${newtonColorClass(currentDotationBuilding, apt.number)} ${index === currentDotationApartment ? 'active' : ''}" role="tab" aria-selected="${index === currentDotationApartment}" data-dotation-apartment="${index}">${apartmentDisplayName(currentDotationBuilding, apt.number)}</button>`).join('');
 }
 function renderBuilding() {
   const apartment = data[currentBuilding][currentApartment];
@@ -166,6 +287,33 @@ function renderOverview() {
     return `<tr class="${newtonColorClass(key, apt.number)}" data-building="${key}" data-apartment="${index}"><td>${BUILDINGS[key]}</td><td>${apartmentDisplayName(key, apt.number, true)}</td>${cells}<td><div class="mini-progress"><span>${progress}%</span><i style="--progress:${progress}%"></i></div></td></tr>`;
   })).join('');
 }
+function renderDotationBuilding() {
+  const apartment = dotationData[currentDotationBuilding][currentDotationApartment];
+  renderDotationTabs();
+  $('#dotationApartmentTitle').textContent = apartmentDisplayName(currentDotationBuilding, apartment.number);
+  const stats = dotationStats(apartment);
+  $('#dotationBadge').textContent = `${stats.installed} de ${stats.total} instalados`;
+  const progress = dotationBuildingPercent(currentDotationBuilding);
+  $('#dotationProgress').style.background = `conic-gradient(#8b2cff ${progress}%, #eadcff 0)`;
+  $('#dotationProgress strong').textContent = `${progress}%`;
+  $('#dotationItemsBody').innerHTML = DOTATION_ITEMS.map(item => {
+    const value = apartment.items[item.key];
+    return `<tr data-dotation-item="${item.key}">
+      <td class="dotation-name">${escapeHtml(item.label)}</td>
+      <td><button class="dotation-check ${value.installed ? 'yes' : 'no'}" type="button" data-dotation-toggle="${item.key}">${value.installed ? 'Sí' : 'No'}</button></td>
+      <td><textarea class="dotation-note" rows="2" data-dotation-note="${item.key}" placeholder="Observaciones…">${escapeHtml(value.notes)}</textarea></td>
+    </tr>`;
+  }).join('');
+  requestAnimationFrame(() => document.querySelector('#dotationApartmentTabs .tab.active')?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }));
+}
+function renderDotationOverview() {
+  const filter = $('#dotationOverviewBuilding').value;
+  const keys = filter === 'all' ? Object.keys(BUILDINGS) : [filter];
+  $('#dotationOverviewBody').innerHTML = keys.flatMap(key => dotationData[key].map((apt, index) => {
+    const stats = dotationStats(apt);
+    return `<tr class="${newtonColorClass(key, apt.number)}" data-dotation-building="${key}" data-dotation-apartment="${index}"><td>${BUILDINGS[key]}</td><td>${apartmentDisplayName(key, apt.number, true)}</td><td>${stats.installed}</td><td>${stats.pending}</td><td><div class="mini-progress mini-progress--dotation"><span>${stats.percent}%</span><i style="--progress:${stats.percent}%"></i></div></td></tr>`;
+  })).join('');
+}
 
 function openDiaryDatabase() {
   return new Promise((resolve, reject) => {
@@ -173,6 +321,7 @@ function openDiaryDatabase() {
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains('entries')) request.result.createObjectStore('entries', { keyPath: 'date' });
       if (!request.result.objectStoreNames.contains('apartmentPhotos')) request.result.createObjectStore('apartmentPhotos', { keyPath: 'id' });
+      if (!request.result.objectStoreNames.contains('savedProjects')) request.result.createObjectStore('savedProjects', { keyPath: 'id' });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -196,6 +345,7 @@ const getApartmentPhoto = (building, apartmentNumber, slot) => diaryOperation('r
 const putApartmentPhoto = photo => diaryOperation('readwrite', store => store.put(photo), 'apartmentPhotos');
 const deleteApartmentPhoto = (building, apartmentNumber, slot) => diaryOperation('readwrite', store => store.delete(apartmentPhotoId(building, apartmentNumber, slot)), 'apartmentPhotos');
 const getAllFromStore = storeName => diaryOperation('readonly', store => store.getAll(), storeName);
+const putSavedProject = project => diaryOperation('readwrite', store => store.put(project), 'savedProjects');
 async function replaceStore(storeName, records = []) {
   const database = await openDiaryDatabase();
   return new Promise((resolve, reject) => {
@@ -341,6 +491,24 @@ async function openJournalList() {
   await renderJournalList();
   showView('journalListView');
 }
+async function openDownloadView() {
+  await renderSavedProjects();
+  showView('downloadView');
+}
+function openSituationHome() {
+  activeArea = 'situation';
+  renderHome();
+  showView('homeView');
+}
+function openDotationHome() {
+  activeArea = 'dotation';
+  renderDotationHome();
+  showView('dotationHomeView');
+}
+function openAreaHome() {
+  if (activeArea === 'dotation') openDotationHome();
+  else openSituationHome();
+}
 async function buildProjectBackup() {
   return {
     app: 'Edificios Lachar',
@@ -349,9 +517,61 @@ async function buildProjectBackup() {
     storageKey: STORAGE_KEY,
     diaryDatabase: DIARY_DB,
     data,
+    dotationData,
     diaryEntries: await getAllFromStore('entries'),
     apartmentPhotos: await getAllFromStore('apartmentPhotos')
   };
+}
+function savedProjectDate(value) {
+  try { return new Date(value).toLocaleString('es-ES'); }
+  catch { return 'Fecha no disponible'; }
+}
+async function renderSavedProjects() {
+  const list = $('#savedProjectsList');
+  const projects = (await getAllFromStore('savedProjects')).sort((a, b) => Number(a.number) - Number(b.number));
+  if (!projects.length) {
+    list.innerHTML = '<p class="saved-projects-empty">Todavía no hay ningún proyecto guardado en este móvil.</p>';
+    return;
+  }
+  list.innerHTML = projects.map(project => `
+    <div class="saved-project-item" data-saved-project="${escapeHtml(project.id)}">
+      <div>
+        <strong>Proyecto guardado ${project.number}</strong>
+        <span>Actualizado: ${escapeHtml(savedProjectDate(project.updatedAt || project.createdAt))}</span>
+      </div>
+      <button type="button" data-saved-project-action="modify">Modificar</button>
+    </div>
+  `).join('');
+}
+async function saveProjectSnapshot(existingProject = null) {
+  const projects = await getAllFromStore('savedProjects');
+  const backup = await buildProjectBackup();
+  const now = new Date().toISOString();
+  const project = existingProject || {
+    id: `project-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    number: projects.reduce((max, item) => Math.max(max, Number(item.number) || 0), 0) + 1,
+    createdAt: now
+  };
+  project.backup = backup;
+  project.updatedAt = now;
+  await putSavedProject(project);
+  await renderSavedProjects();
+  showToastMessage(existingProject ? 'Proyecto modificado' : 'Proyecto guardado');
+}
+async function saveNewProject() {
+  try { await saveProjectSnapshot(); }
+  catch { alert('No se ha podido guardar el proyecto en este dispositivo.'); }
+}
+async function modifySavedProject(id) {
+  try {
+    const projects = await getAllFromStore('savedProjects');
+    const project = projects.find(item => item.id === id);
+    if (!project) return;
+    if (!confirm(`¿Modificar el Proyecto guardado ${project.number} con los datos actuales de la app?`)) return;
+    await saveProjectSnapshot(project);
+  } catch {
+    alert('No se ha podido modificar este proyecto guardado.');
+  }
 }
 function formatExportDate() {
   const now = new Date();
@@ -365,6 +585,10 @@ function makeExcelBackupHtml(backup) {
     const statuses = FIELDS.map(([field]) => statusLabel(apartment.statuses?.[field]));
     return `<tr><td>${escapeHtml(BUILDINGS[building] || building)}</td><td>${escapeHtml(apartmentDisplayName(building, apartment.number))}</td>${statuses.map(status => `<td>${escapeHtml(status)}</td>`).join('')}<td>${escapeHtml(apartment.notes || '')}</td></tr>`;
   })).join('');
+  const dotationRows = Object.entries(backup.dotationData || {}).flatMap(([building, apartments]) => apartments.flatMap(apartment => DOTATION_ITEMS.map(item => {
+    const value = apartment.items?.[item.key] || {};
+    return `<tr><td>${escapeHtml(BUILDINGS[building] || building)}</td><td>${escapeHtml(apartmentDisplayName(building, apartment.number))}</td><td>${escapeHtml(item.label)}</td><td>${value.installed ? 'Sí' : 'No'}</td><td>${escapeHtml(value.notes || '')}</td></tr>`;
+  }))).join('');
   const diaryRows = backup.diaryEntries.map(entry => `<tr><td>${escapeHtml(entry.date || '')}</td><td>${escapeHtml(BUILDINGS[entry.building] || entry.building || '')}</td><td>${escapeHtml(entry.apartmentNumber ? apartmentDisplayName(entry.building, entry.apartmentNumber) : '')}</td><td>${escapeHtml(entry.tag || '')}</td><td>${escapeHtml(entry.memo || '')}</td><td>${entry.photo ? 'Sí' : 'No'}</td></tr>`).join('');
   const apartmentPhotoRows = backup.apartmentPhotos.map(photo => `<tr><td>${escapeHtml(BUILDINGS[photo.building] || photo.building || '')}</td><td>${escapeHtml(apartmentDisplayName(photo.building, photo.apartmentNumber))}</td><td>${Number(photo.slot) + 1}</td><td>${photo.photo ? 'Sí' : 'No'}</td></tr>`).join('');
   return `<!doctype html>
@@ -387,6 +611,11 @@ function makeExcelBackupHtml(backup) {
   <table>
     <thead><tr><th>Edificio</th><th>Piso</th>${FIELDS.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join('')}<th>Notas u observaciones</th></tr></thead>
     <tbody>${apartmentRows}</tbody>
+  </table>
+  <h2>Dotación</h2>
+  <table>
+    <thead><tr><th>Edificio</th><th>Piso</th><th>Denominación</th><th>Instalado</th><th>Observaciones</th></tr></thead>
+    <tbody>${dotationRows || '<tr><td colspan="5">Sin datos de dotación</td></tr>'}</tbody>
   </table>
   <h2>Diario</h2>
   <table>
@@ -437,15 +666,20 @@ async function importProjectFile(event) {
     if (backup?.app !== 'Edificios Lachar' || !backup.data) throw new Error('Archivo no válido');
     if (!confirm('Esto sustituirá los datos de este dispositivo por los del archivo elegido. ¿Quieres continuar?')) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(backup.data));
+    localStorage.setItem(DOTATION_STORAGE_KEY, JSON.stringify(backup.dotationData || defaultDotationData()));
     await replaceStore('entries', Array.isArray(backup.diaryEntries) ? backup.diaryEntries : []);
     await replaceStore('apartmentPhotos', Array.isArray(backup.apartmentPhotos) ? backup.apartmentPhotos : []);
     data = loadData();
+    dotationData = loadDotationData();
     currentBuilding = 'building1';
     currentApartment = 0;
+    currentDotationBuilding = 'building1';
+    currentDotationApartment = 0;
     selectedDateKey = '';
     currentPhoto = '';
     renderHome();
-    showView('homeView');
+    renderDotationHome();
+    showView('launchView');
     showToastMessage('Proyecto cargado');
   } catch {
     alert('No se ha podido cargar este archivo. Elige un Excel descargado desde esta misma app.');
@@ -454,16 +688,33 @@ async function importProjectFile(event) {
   }
 }
 
+$('#startSituationBtn').addEventListener('click', openSituationHome);
+$('#startDotationBtn').addEventListener('click', openDotationHome);
+document.querySelectorAll('[data-go-start]').forEach(button => button.addEventListener('click', () => showView('launchView')));
+document.querySelectorAll('[data-go-dotation-home]').forEach(button => button.addEventListener('click', openDotationHome));
 $('#buildingSelect').addEventListener('change', event => {
   if (event.target.value) { openBuilding(event.target.value); event.target.value = ''; }
 });
-$('#overviewBtn').addEventListener('click', () => { $('#overviewBuilding').value = 'all'; renderOverview(); showView('overviewView'); });
-$('#showBuildingOverview').addEventListener('click', () => { $('#overviewBuilding').value = currentBuilding; renderOverview(); showView('overviewView'); });
-$('#calendarBtn').addEventListener('click', openCalendar);
-$('#downloadMenuBtn').addEventListener('click', () => showView('downloadView'));
+$('#dotationBuildingSelect').addEventListener('change', event => {
+  if (event.target.value) { openDotationBuilding(event.target.value); event.target.value = ''; }
+});
+$('#overviewBtn').addEventListener('click', () => { activeArea = 'situation'; $('#overviewBuilding').value = 'all'; renderOverview(); showView('overviewView'); });
+$('#showBuildingOverview').addEventListener('click', () => { activeArea = 'situation'; $('#overviewBuilding').value = currentBuilding; renderOverview(); showView('overviewView'); });
+$('#dotationOverviewBtn').addEventListener('click', () => { activeArea = 'dotation'; $('#dotationOverviewBuilding').value = 'all'; renderDotationOverview(); showView('dotationOverviewView'); });
+$('#showDotationOverview').addEventListener('click', () => { activeArea = 'dotation'; $('#dotationOverviewBuilding').value = currentDotationBuilding; renderDotationOverview(); showView('dotationOverviewView'); });
+$('#calendarBtn').addEventListener('click', () => { activeArea = 'situation'; openCalendar(); });
+$('#dotationCalendarBtn').addEventListener('click', () => { activeArea = 'dotation'; openCalendar(); });
+$('#downloadMenuBtn').addEventListener('click', () => { activeArea = 'situation'; openDownloadView(); });
+$('#dotationDownloadBtn').addEventListener('click', () => { activeArea = 'dotation'; openDownloadView(); });
+$('#saveProjectBtn').addEventListener('click', saveNewProject);
 $('#exportProjectBtn').addEventListener('click', exportProject);
 $('#importProjectInput').addEventListener('change', importProjectFile);
-document.querySelectorAll('[data-go-home]').forEach(button => button.addEventListener('click', () => { renderHome(); showView('homeView'); }));
+$('#savedProjectsList').addEventListener('click', event => {
+  const button = event.target.closest('[data-saved-project-action]');
+  const item = event.target.closest('[data-saved-project]');
+  if (button && item) modifySavedProject(item.dataset.savedProject);
+});
+document.querySelectorAll('[data-go-home]').forEach(button => button.addEventListener('click', openAreaHome));
 $('#apartmentTabs').addEventListener('click', event => {
   const tab = event.target.closest('[data-apartment]');
   if (!tab) return;
@@ -475,6 +726,30 @@ $('#statusFields').addEventListener('change', event => {
   data[currentBuilding][currentApartment].statuses[event.target.dataset.field] = event.target.value;
   save();
   renderBuilding();
+});
+$('#dotationApartmentTabs').addEventListener('click', event => {
+  const tab = event.target.closest('[data-dotation-apartment]');
+  if (!tab) return;
+  currentDotationApartment = Number(tab.dataset.dotationApartment);
+  renderDotationBuilding();
+});
+$('#dotationItemsBody').addEventListener('click', event => {
+  const button = event.target.closest('[data-dotation-toggle]');
+  if (!button) return;
+  const itemKey = button.dataset.dotationToggle;
+  const apartment = dotationData[currentDotationBuilding][currentDotationApartment];
+  apartment.items[itemKey].installed = !apartment.items[itemKey].installed;
+  saveDotation();
+  renderDotationBuilding();
+});
+$('#dotationItemsBody').addEventListener('input', event => {
+  const itemKey = event.target.dataset.dotationNote;
+  if (!itemKey) return;
+  dotationData[currentDotationBuilding][currentDotationApartment].items[itemKey].notes = event.target.value;
+  saveDotation(false);
+});
+$('#dotationItemsBody').addEventListener('change', event => {
+  if (event.target.dataset.dotationNote) saveDotation();
 });
 $('#apartmentNotes').addEventListener('input', event => { data[currentBuilding][currentApartment].notes = event.target.value; save(false); });
 $('#apartmentNotes').addEventListener('change', () => save());
@@ -545,6 +820,11 @@ $('#overviewBuilding').addEventListener('change', renderOverview);
 $('#overviewBody').addEventListener('click', event => {
   const row = event.target.closest('tr[data-building]');
   if (row) openBuilding(row.dataset.building, Number(row.dataset.apartment));
+});
+$('#dotationOverviewBuilding').addEventListener('change', renderDotationOverview);
+$('#dotationOverviewBody').addEventListener('click', event => {
+  const row = event.target.closest('tr[data-dotation-building]');
+  if (row) openDotationBuilding(row.dataset.dotationBuilding, Number(row.dataset.dotationApartment));
 });
 
 $('#previousMonth').addEventListener('click', async () => { monthCursor.setMonth(monthCursor.getMonth() - 1); await renderCalendar(); });
@@ -637,4 +917,6 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 }
 
 save(false);
+saveDotation(false);
 renderHome();
+renderDotationHome();

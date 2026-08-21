@@ -28,12 +28,25 @@
   </header>
 
   <main class="shell">
-    <section id="homeView" class="view active" aria-labelledby="homeTitle">
+    <section id="launchView" class="view active launch-view" aria-labelledby="launchTitle">
+      <article class="launch-card">
+        <p class="section-kicker">Panel inicial</p>
+        <h2 id="launchTitle">¿Qué quieres revisar?</h2>
+        <p>Elige si vas a trabajar sobre la situación de los pisos o sobre la dotación instalada.</p>
+        <div class="launch-actions">
+          <button id="startSituationBtn" class="button button--launch-situation" type="button">Situación</button>
+          <button id="startDotationBtn" class="button button--launch-dotation" type="button">Dotación</button>
+        </div>
+      </article>
+    </section>
+
+    <section id="homeView" class="view situation-home" aria-labelledby="homeTitle">
       <div class="welcome">
         <div>
-          <p class="section-kicker">Panel principal</p>
+          <p class="section-kicker">Situación</p>
           <h2 id="homeTitle">¿Qué edificio quieres revisar?</h2>
           <p>Selecciona un edificio para actualizar sus viviendas o consulta el estado global.</p>
+          <button class="back-button" data-go-start type="button">← Pantalla inicial</button>
         </div>
         <div class="home-actions">
           <label class="select-wrap select-wrap--large">
@@ -51,7 +64,7 @@
             <span class="button-icon">▣</span> Abrir calendario diario
           </button>
           <button id="downloadMenuBtn" class="button button--download" type="button">
-            <span class="button-icon">⬇</span> Descargar
+            <span class="button-icon">⬇</span> Descargas
           </button>
           <button id="installBtn" class="button button--install" type="button" hidden>
             <span class="button-icon">⇩</span> Instalar aplicación
@@ -62,17 +75,54 @@
       <div class="summary-cards" id="summaryCards"></div>
     </section>
 
+    <section id="dotationHomeView" class="view dotation-view" aria-labelledby="dotationHomeTitle">
+      <div class="welcome welcome--dotation">
+        <div>
+          <p class="section-kicker">Dotación</p>
+          <h2 id="dotationHomeTitle">¿Qué dotación quieres revisar?</h2>
+          <p>Selecciona edificio y piso para marcar qué elementos están instalados y anotar observaciones.</p>
+          <button class="back-button" data-go-start type="button">← Pantalla inicial</button>
+        </div>
+        <div class="home-actions">
+          <label class="select-wrap select-wrap--large">
+            <span>Edificio</span>
+            <select id="dotationBuildingSelect">
+              <option value="">Seleccionar edificio…</option>
+              <option value="building1">Newton</option>
+              <option value="building2">Olimpo</option>
+            </select>
+          </label>
+          <button id="dotationOverviewBtn" class="button button--dotation-dark" type="button">
+            <span class="button-icon">▦</span> Ver cuadro general
+          </button>
+          <button id="dotationCalendarBtn" class="button button--dotation-calendar" type="button">
+            <span class="button-icon">▣</span> Abrir calendario diario
+          </button>
+          <button id="dotationDownloadBtn" class="button button--dotation-download" type="button">
+            <span class="button-icon">⬇</span> Descargas
+          </button>
+        </div>
+      </div>
+
+      <div class="summary-cards" id="dotationSummaryCards"></div>
+    </section>
+
     <section id="downloadView" class="view download-view" aria-labelledby="downloadTitle">
       <div class="toolbar">
-        <button class="back-button back-button--cream" data-go-home type="button">← Menú inicial</button>
+        <button class="back-button back-button--cream" data-go-start type="button">← Pantalla inicial</button>
       </div>
       <article class="download-card">
         <p class="section-kicker">Copia de seguridad</p>
-        <h2 id="downloadTitle">Descargar o cargar proyecto</h2>
-        <p>Guarda toda la información de esta app en un archivo Excel y cárgala después en otro móvil para dejarlo exactamente igual.</p>
+        <h2 id="downloadTitle">Guardar, descargar o cargar proyecto</h2>
+        <p>Guarda una copia en este móvil, descarga toda la información en Excel o carga ese archivo en otro móvil para dejar la app exactamente igual.</p>
         <div class="download-actions">
+          <button id="saveProjectBtn" class="button button--save-project" type="button">Guardar proyecto</button>
           <button id="exportProjectBtn" class="button button--download-main" type="button">Descargar todo</button>
-          <label class="button button--download-light">Cargar proyecto<input id="importProjectInput" type="file" accept=".xls,.html,.htm,.json,application/vnd.ms-excel,text/html,application/json"></label>
+          <label class="button button--load-project">Cargar proyecto<input id="importProjectInput" type="file" accept=".xls,.html,.htm,.json,application/vnd.ms-excel,text/html,application/json"></label>
+        </div>
+        <div class="saved-projects-panel">
+          <h3>Proyectos guardados</h3>
+          <div id="savedProjectsList" class="saved-projects-list"></div>
         </div>
         <p class="download-note">Importante: al cargar un proyecto se sustituyen los datos de este dispositivo por los del archivo elegido.</p>
       </article>
@@ -144,6 +194,61 @@
         </table>
       </div>
       <p class="table-help">LIM: Limpieza · MOB: Mobiliario · INS: Instalaciones · ENS: Enseres · CLI: Clima · SEG: Seguridad · PIN: Pintura</p>
+    </section>
+
+    <section id="dotationBuildingView" class="view dotation-view" aria-labelledby="dotationBuildingTitle">
+      <div class="toolbar">
+        <button class="back-button" data-go-dotation-home type="button">← Menú dotación</button>
+        <button id="showDotationOverview" class="button button--dotation-light" type="button">▦ Ver resumen</button>
+      </div>
+      <div class="page-heading page-heading--dotation">
+        <div>
+          <p class="section-kicker">Dotación instalada</p>
+          <h2 id="dotationBuildingTitle">Edificio</h2>
+          <p>Marca cada elemento como instalado y añade observaciones si hace falta.</p>
+        </div>
+        <div class="progress-ring progress-ring--dotation" id="dotationProgress"><strong>0%</strong><span>instalado</span></div>
+      </div>
+      <div class="apartment-tabs" id="dotationApartmentTabs" role="tablist"></div>
+      <article class="dotation-card">
+        <div class="apartment-card__head apartment-card__head--dotation">
+          <div>
+            <span class="door-icon door-icon--dotation">◆</span>
+            <div><p>Vivienda seleccionada</p><h3 id="dotationApartmentTitle">Piso 1</h3></div>
+          </div>
+          <span id="dotationBadge" class="status-badge status-badge--dotation">0 instalados</span>
+        </div>
+        <div class="dotation-table-wrap">
+          <table class="dotation-table">
+            <thead>
+              <tr><th>Denominación</th><th>Verificación</th><th>Observaciones</th></tr>
+            </thead>
+            <tbody id="dotationItemsBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="dotationOverviewView" class="view dotation-view" aria-labelledby="dotationOverviewTitle">
+      <div class="toolbar">
+        <button class="back-button" data-go-dotation-home type="button">← Menú dotación</button>
+        <label class="compact-filter">Edificio
+          <select id="dotationOverviewBuilding">
+            <option value="all">Todos</option>
+            <option value="building1">Newton</option>
+            <option value="building2">Olimpo</option>
+          </select>
+        </label>
+      </div>
+      <div class="page-heading page-heading--overview page-heading--dotation">
+        <div><p class="section-kicker">Vista de conjunto</p><h2 id="dotationOverviewTitle">Dotación de todos los pisos</h2><p>Pulsa una fila para revisar o modificar ese piso.</p></div>
+      </div>
+      <div class="overview-table-wrap dotation-overview-wrap">
+        <table class="overview-table dotation-overview-table">
+          <thead><tr><th>Edificio</th><th>Piso</th><th>Instalados</th><th>Pendientes</th><th>Avance</th></tr></thead>
+          <tbody id="dotationOverviewBody"></tbody>
+        </table>
+      </div>
     </section>
 
     <section id="calendarView" class="view" aria-labelledby="calendarTitle">
