@@ -580,58 +580,168 @@ function formatExportDate() {
 function statusLabel(value) {
   return STATUS[value]?.label || value || '';
 }
-function makeExcelBackupHtml(backup) {
-  const apartmentRows = Object.entries(backup.data).flatMap(([building, apartments]) => apartments.map(apartment => {
-    const statuses = FIELDS.map(([field]) => statusLabel(apartment.statuses?.[field]));
-    return `<tr><td>${escapeHtml(BUILDINGS[building] || building)}</td><td>${escapeHtml(apartmentDisplayName(building, apartment.number))}</td>${statuses.map(status => `<td>${escapeHtml(status)}</td>`).join('')}<td>${escapeHtml(apartment.notes || '')}</td></tr>`;
-  })).join('');
-  const dotationRows = Object.entries(backup.dotationData || {}).flatMap(([building, apartments]) => apartments.flatMap(apartment => DOTATION_ITEMS.map(item => {
-    const value = apartment.items?.[item.key] || {};
-    return `<tr><td>${escapeHtml(BUILDINGS[building] || building)}</td><td>${escapeHtml(apartmentDisplayName(building, apartment.number))}</td><td>${escapeHtml(item.label)}</td><td>${value.installed ? 'Sí' : 'No'}</td><td>${escapeHtml(value.notes || '')}</td></tr>`;
-  }))).join('');
-  const diaryRows = backup.diaryEntries.map(entry => `<tr><td>${escapeHtml(entry.date || '')}</td><td>${escapeHtml(BUILDINGS[entry.building] || entry.building || '')}</td><td>${escapeHtml(entry.apartmentNumber ? apartmentDisplayName(entry.building, entry.apartmentNumber) : '')}</td><td>${escapeHtml(entry.tag || '')}</td><td>${escapeHtml(entry.memo || '')}</td><td>${entry.photo ? 'Sí' : 'No'}</td></tr>`).join('');
-  const apartmentPhotoRows = backup.apartmentPhotos.map(photo => `<tr><td>${escapeHtml(BUILDINGS[photo.building] || photo.building || '')}</td><td>${escapeHtml(apartmentDisplayName(photo.building, photo.apartmentNumber))}</td><td>${Number(photo.slot) + 1}</td><td>${photo.photo ? 'Sí' : 'No'}</td></tr>`).join('');
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial, sans-serif; }
-    table { border-collapse: collapse; margin-bottom: 28px; }
-    th { background: #4b2918; color: white; }
-    th, td { border: 1px solid #b9a48e; padding: 6px 8px; vertical-align: top; }
-    h1, h2 { color: #4b2918; }
-    .backup-json { display: none; }
-  </style>
-</head>
-<body>
-  <h1>Edificios Lachar</h1>
-  <p>Copia exportada el ${escapeHtml(new Date(backup.exportedAt).toLocaleString('es-ES'))}</p>
-  <h2>Estados y observaciones</h2>
-  <table>
-    <thead><tr><th>Edificio</th><th>Piso</th>${FIELDS.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join('')}<th>Notas u observaciones</th></tr></thead>
-    <tbody>${apartmentRows}</tbody>
-  </table>
-  <h2>Dotación</h2>
-  <table>
-    <thead><tr><th>Edificio</th><th>Piso</th><th>Denominación</th><th>Instalado</th><th>Observaciones</th></tr></thead>
-    <tbody>${dotationRows || '<tr><td colspan="5">Sin datos de dotación</td></tr>'}</tbody>
-  </table>
-  <h2>Diario</h2>
-  <table>
-    <thead><tr><th>Fecha</th><th>Edificio</th><th>Piso</th><th>Etiqueta</th><th>Memoria</th><th>Foto</th></tr></thead>
-    <tbody>${diaryRows || '<tr><td colspan="6">Sin fichas diarias</td></tr>'}</tbody>
-  </table>
-  <h2>Imágenes de pisos</h2>
-  <table>
-    <thead><tr><th>Edificio</th><th>Piso</th><th>Hueco</th><th>Imagen</th></tr></thead>
-    <tbody>${apartmentPhotoRows || '<tr><td colspan="4">Sin imágenes de pisos</td></tr>'}</tbody>
-  </table>
-  <pre id="edificiosLacharBackupData" class="backup-json">${escapeHtml(JSON.stringify(backup))}</pre>
-</body>
-</html>`;
+function xmlEscape(value = '') {
+  return String(value).replace(/[<>&'"]/g, character => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[character]);
 }
-function downloadTextFile(filename, content, type) {
+function columnName(index) {
+  let name = '';
+  while (index > 0) {
+    const remainder = (index - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    index = Math.floor((index - 1) / 26);
+  }
+  return name;
+}
+function sheetXml(rows) {
+  const sheetRows = rows.map((row, rowIndex) => {
+    const cells = row.map((value, cellIndex) => {
+      const ref = `${columnName(cellIndex + 1)}${rowIndex + 1}`;
+      return `<c r="${ref}" t="inlineStr"><is><t>${xmlEscape(value)}</t></is></c>`;
+    }).join('');
+    return `<row r="${rowIndex + 1}">${cells}</row>`;
+  }).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sheetRows}</sheetData></worksheet>`;
+}
+function backupRows(backup) {
+  const situation = [
+    ['Edificio', 'Piso', ...FIELDS.map(([, label]) => label), 'Notas u observaciones'],
+    ...Object.entries(backup.data).flatMap(([building, apartments]) => apartments.map(apartment => [
+      BUILDINGS[building] || building,
+      apartmentDisplayName(building, apartment.number),
+      ...FIELDS.map(([field]) => statusLabel(apartment.statuses?.[field])),
+      apartment.notes || ''
+    ]))
+  ];
+  const dotation = [
+    ['Edificio', 'Piso', 'Denominación', 'Instalado', 'Observaciones'],
+    ...Object.entries(backup.dotationData || {}).flatMap(([building, apartments]) => apartments.flatMap(apartment => DOTATION_ITEMS.map(item => {
+      const value = apartment.items?.[item.key] || {};
+      return [BUILDINGS[building] || building, apartmentDisplayName(building, apartment.number), item.label, value.installed ? 'Sí' : 'No', value.notes || ''];
+    })))
+  ];
+  const diary = [
+    ['Fecha', 'Edificio', 'Piso', 'Etiqueta', 'Memoria', 'Foto'],
+    ...backup.diaryEntries.map(entry => [
+      entry.date || '',
+      BUILDINGS[entry.building] || entry.building || '',
+      entry.apartmentNumber ? apartmentDisplayName(entry.building, entry.apartmentNumber) : '',
+      entry.tag || '',
+      entry.memo || '',
+      entry.photo ? 'Sí' : 'No'
+    ])
+  ];
+  const apartmentPhotos = [
+    ['Edificio', 'Piso', 'Hueco', 'Imagen'],
+    ...backup.apartmentPhotos.map(photo => [
+      BUILDINGS[photo.building] || photo.building || '',
+      apartmentDisplayName(photo.building, photo.apartmentNumber),
+      String(Number(photo.slot) + 1),
+      photo.photo ? 'Sí' : 'No'
+    ])
+  ];
+  return { situation, dotation, diary, apartmentPhotos };
+}
+function crc32(bytes) {
+  let crc = -1;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ -1) >>> 0;
+}
+function writeUint16(array, value) {
+  array.push(value & 255, (value >>> 8) & 255);
+}
+function writeUint32(array, value) {
+  array.push(value & 255, (value >>> 8) & 255, (value >>> 16) & 255, (value >>> 24) & 255);
+}
+function dosDateTime(date = new Date()) {
+  const time = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
+  const day = ((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+  return { time, day };
+}
+function createZip(files) {
+  const encoder = new TextEncoder();
+  const output = [];
+  const central = [];
+  const now = dosDateTime();
+  let offset = 0;
+  files.forEach(file => {
+    const nameBytes = encoder.encode(file.name);
+    const dataBytes = typeof file.content === 'string' ? encoder.encode(file.content) : file.content;
+    const checksum = crc32(dataBytes);
+    const local = [];
+    writeUint32(local, 0x04034b50);
+    writeUint16(local, 20);
+    writeUint16(local, 0);
+    writeUint16(local, 0);
+    writeUint16(local, now.time);
+    writeUint16(local, now.day);
+    writeUint32(local, checksum);
+    writeUint32(local, dataBytes.length);
+    writeUint32(local, dataBytes.length);
+    writeUint16(local, nameBytes.length);
+    writeUint16(local, 0);
+    output.push(...local, ...nameBytes, ...dataBytes);
+    const header = [];
+    writeUint32(header, 0x02014b50);
+    writeUint16(header, 20);
+    writeUint16(header, 20);
+    writeUint16(header, 0);
+    writeUint16(header, 0);
+    writeUint16(header, now.time);
+    writeUint16(header, now.day);
+    writeUint32(header, checksum);
+    writeUint32(header, dataBytes.length);
+    writeUint32(header, dataBytes.length);
+    writeUint16(header, nameBytes.length);
+    writeUint16(header, 0);
+    writeUint16(header, 0);
+    writeUint16(header, 0);
+    writeUint16(header, 0);
+    writeUint32(header, 0);
+    writeUint32(header, offset);
+    central.push(...header, ...nameBytes);
+    offset = output.length;
+  });
+  const centralOffset = output.length;
+  output.push(...central);
+  const end = [];
+  writeUint32(end, 0x06054b50);
+  writeUint16(end, 0);
+  writeUint16(end, 0);
+  writeUint16(end, files.length);
+  writeUint16(end, files.length);
+  writeUint32(end, central.length);
+  writeUint32(end, centralOffset);
+  writeUint16(end, 0);
+  output.push(...end);
+  return new Uint8Array(output);
+}
+function makeXlsxBackup(backup) {
+  const rows = backupRows(backup);
+  const backupXml = `<?xml version="1.0" encoding="UTF-8"?><backup>${xmlEscape(JSON.stringify(backup))}</backup>`;
+  const sheets = [
+    ['Situacion', rows.situation],
+    ['Dotacion', rows.dotation],
+    ['Diario', rows.diary],
+    ['Imagenes pisos', rows.apartmentPhotos]
+  ];
+  const sheetFiles = sheets.map(([, sheetRows], index) => ({ name: `xl/worksheets/sheet${index + 1}.xml`, content: sheetXml(sheetRows) }));
+  const workbookSheets = sheets.map(([name], index) => `<sheet name="${xmlEscape(name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join('');
+  const workbookRels = sheets.map(([,], index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join('');
+  return createZip([
+    { name: '[Content_Types].xml', content: `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map(([,], index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/><Override PartName="/customXml/item1.xml" ContentType="application/xml"/></Types>` },
+    { name: '_rels/.rels', content: `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml" Target="customXml/item1.xml"/></Relationships>` },
+    { name: 'docProps/core.xml', content: `<?xml version="1.0" encoding="UTF-8"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Edificios Lachar</dc:title><dc:creator>Edificios Lachar</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${backup.exportedAt}</dcterms:created></cp:coreProperties>` },
+    { name: 'docProps/app.xml', content: `<?xml version="1.0" encoding="UTF-8"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Edificios Lachar</Application></Properties>` },
+    { name: 'xl/workbook.xml', content: `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${workbookSheets}</sheets></workbook>` },
+    { name: 'xl/_rels/workbook.xml.rels', content: `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${workbookRels}</Relationships>` },
+    ...sheetFiles,
+    { name: 'customXml/item1.xml', content: backupXml }
+  ]);
+}
+function downloadBinaryFile(filename, content, type) {
   const blob = new Blob([content], { type });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
@@ -642,12 +752,51 @@ function downloadTextFile(filename, content, type) {
 async function exportProject() {
   try {
     const backup = await buildProjectBackup();
-    const html = makeExcelBackupHtml(backup);
-    downloadTextFile(`edificios-lachar-${formatExportDate()}.xls`, html, 'application/vnd.ms-excel;charset=utf-8');
+    const xlsx = makeXlsxBackup(backup);
+    downloadBinaryFile(`edificios-lachar-${formatExportDate()}.xlsx`, xlsx, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     showToastMessage('Proyecto descargado');
   } catch {
     alert('No se ha podido descargar el proyecto. Inténtalo de nuevo.');
   }
+}
+function unzipStoredFile(buffer, wantedName) {
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  for (let position = bytes.length - 22; position >= 0; position -= 1) {
+    if (view.getUint32(position, true) !== 0x06054b50) continue;
+    const entries = view.getUint16(position + 10, true);
+    const centralOffset = view.getUint32(position + 16, true);
+    let cursor = centralOffset;
+    const decoder = new TextDecoder();
+    for (let index = 0; index < entries; index += 1) {
+      if (view.getUint32(cursor, true) !== 0x02014b50) throw new Error('XLSX no válido');
+      const method = view.getUint16(cursor + 10, true);
+      const compressedSize = view.getUint32(cursor + 20, true);
+      const nameLength = view.getUint16(cursor + 28, true);
+      const extraLength = view.getUint16(cursor + 30, true);
+      const commentLength = view.getUint16(cursor + 32, true);
+      const localOffset = view.getUint32(cursor + 42, true);
+      const name = decoder.decode(bytes.slice(cursor + 46, cursor + 46 + nameLength));
+      if (name === wantedName) {
+        if (method !== 0) throw new Error('XLSX comprimido no compatible');
+        const localNameLength = view.getUint16(localOffset + 26, true);
+        const localExtraLength = view.getUint16(localOffset + 28, true);
+        const start = localOffset + 30 + localNameLength + localExtraLength;
+        return decoder.decode(bytes.slice(start, start + compressedSize));
+      }
+      cursor += 46 + nameLength + extraLength + commentLength;
+    }
+  }
+  throw new Error('No se encontró la copia de seguridad');
+}
+function unescapeXml(value = '') {
+  return value.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+}
+function extractBackupFromXlsx(buffer) {
+  const xml = unzipStoredFile(buffer, 'customXml/item1.xml');
+  const match = xml.match(/<backup>([\s\S]*)<\/backup>/);
+  if (!match) throw new Error('XLSX sin copia de seguridad');
+  return JSON.parse(unescapeXml(match[1]));
 }
 function extractBackupFromFile(text) {
   const trimmed = text.trim();
@@ -661,8 +810,11 @@ async function importProjectFile(event) {
   const file = event.target.files?.[0];
   if (!file) return;
   try {
-    const text = await file.text();
-    const backup = extractBackupFromFile(text);
+    const buffer = await file.arrayBuffer();
+    const signature = new Uint8Array(buffer.slice(0, 2));
+    const backup = signature[0] === 80 && signature[1] === 75
+      ? extractBackupFromXlsx(buffer)
+      : extractBackupFromFile(new TextDecoder().decode(buffer));
     if (backup?.app !== 'Edificios Lachar' || !backup.data) throw new Error('Archivo no válido');
     if (!confirm('Esto sustituirá los datos de este dispositivo por los del archivo elegido. ¿Quieres continuar?')) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(backup.data));

@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=12">
 </head>
 <body>
   <header class="hero">
@@ -118,7 +118,7 @@
         <div class="download-actions">
           <button id="saveProjectBtn" class="button button--save-project" type="button">Guardar proyecto</button>
           <button id="exportProjectBtn" class="button button--download-main" type="button">Descargar todo</button>
-          <label class="button button--load-project">Cargar proyecto<input id="importProjectInput" type="file" accept=".xls,.html,.htm,.json,application/vnd.ms-excel,text/html,application/json"></label>
+          <label class="button button--load-project">Cargar proyecto<input id="importProjectInput" type="file" accept=".xlsx,.xls,.html,.htm,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/html,application/json"></label>
         </div>
         <div class="saved-projects-panel">
           <h3>Proyectos guardados</h3>
@@ -348,6 +348,6 @@
       <button id="understoodInstall" class="button button--dark" type="button">Entendido</button>
     </div>
   </div>
-  <script src="app.js"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>
