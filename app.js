@@ -728,15 +728,14 @@ function createZip(files) {
   appendBytes(output, end);
   return new Uint8Array(output);
 }
-function makeXlsxBackup(backup) {
+function makeXlsxBackup(backup, mode = 'all') {
   const rows = backupRows(backup);
   const backupXml = `<?xml version="1.0" encoding="UTF-8"?><backup>${xmlEscape(JSON.stringify(backup))}</backup>`;
-  const sheets = [
-    ['Situacion', rows.situation],
-    ['Dotacion', rows.dotation],
-    ['Diario', rows.diary],
-    ['Imagenes pisos', rows.apartmentPhotos]
-  ];
+  const sheets = mode === 'dotation'
+    ? [['Dotacion', rows.dotation]]
+    : mode === 'situation'
+      ? [['Situacion', rows.situation], ['Diario', rows.diary], ['Imagenes pisos', rows.apartmentPhotos]]
+      : [['Situacion', rows.situation], ['Dotacion', rows.dotation], ['Diario', rows.diary], ['Imagenes pisos', rows.apartmentPhotos]];
   const sheetFiles = sheets.map(([, sheetRows], index) => ({ name: `xl/worksheets/sheet${index + 1}.xml`, content: sheetXml(sheetRows) }));
   const workbookSheets = sheets.map(([name], index) => `<sheet name="${xmlEscape(name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join('');
   const workbookRels = sheets.map(([,], index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join('');
@@ -761,9 +760,11 @@ function downloadBinaryFile(filename, content, type) {
 }
 async function exportProject() {
   try {
-    const backup = await buildProjectBackup();
-    const xlsx = makeXlsxBackup(backup);
-    downloadBinaryFile(`edificios-lachar-${formatExportDate()}.xlsx`, xlsx, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const mode = activeArea === 'dotation' ? 'dotation' : 'situation';
+    const backup = { ...await buildProjectBackup(), mode };
+    const xlsx = makeXlsxBackup(backup, mode);
+    const label = mode === 'dotation' ? 'dotacion' : 'situacion';
+    downloadBinaryFile(`edificios-lachar-${label}-${formatExportDate()}.xlsx`, xlsx, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     showToastMessage('Proyecto descargado');
   } catch {
     alert('No se ha podido descargar el proyecto. Inténtalo de nuevo.');
@@ -825,12 +826,23 @@ async function importProjectFile(event) {
     const backup = signature[0] === 80 && signature[1] === 75
       ? extractBackupFromXlsx(buffer)
       : extractBackupFromFile(new TextDecoder().decode(buffer));
-    if (backup?.app !== 'Edificios Lachar' || !backup.data) throw new Error('Archivo no válido');
+    if (backup?.app !== 'Edificios Lachar') throw new Error('Archivo no válido');
     if (!confirm('Esto sustituirá los datos de este dispositivo por los del archivo elegido. ¿Quieres continuar?')) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(backup.data));
-    localStorage.setItem(DOTATION_STORAGE_KEY, JSON.stringify(backup.dotationData || defaultDotationData()));
-    await replaceStore('entries', Array.isArray(backup.diaryEntries) ? backup.diaryEntries : []);
-    await replaceStore('apartmentPhotos', Array.isArray(backup.apartmentPhotos) ? backup.apartmentPhotos : []);
+    if (backup.mode === 'dotation') {
+      if (!backup.dotationData) throw new Error('Archivo de dotación no válido');
+      localStorage.setItem(DOTATION_STORAGE_KEY, JSON.stringify(backup.dotationData));
+    } else if (backup.mode === 'situation') {
+      if (!backup.data) throw new Error('Archivo de situación no válido');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(backup.data));
+      await replaceStore('entries', Array.isArray(backup.diaryEntries) ? backup.diaryEntries : []);
+      await replaceStore('apartmentPhotos', Array.isArray(backup.apartmentPhotos) ? backup.apartmentPhotos : []);
+    } else {
+      if (!backup.data) throw new Error('Archivo no válido');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(backup.data));
+      localStorage.setItem(DOTATION_STORAGE_KEY, JSON.stringify(backup.dotationData || defaultDotationData()));
+      await replaceStore('entries', Array.isArray(backup.diaryEntries) ? backup.diaryEntries : []);
+      await replaceStore('apartmentPhotos', Array.isArray(backup.apartmentPhotos) ? backup.apartmentPhotos : []);
+    }
     data = loadData();
     dotationData = loadDotationData();
     currentBuilding = 'building1';
