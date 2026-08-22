@@ -842,8 +842,113 @@ function unzipStoredFile(buffer, wantedName) {
   }
   throw new Error('No se encontró la copia de seguridad');
 }
+function unzipStoredFiles(buffer, wanted) {
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  const decoder = new TextDecoder();
+  const files = [];
+  for (let position = bytes.length - 22; position >= 0; position -= 1) {
+    if (view.getUint32(position, true) !== 0x06054b50) continue;
+    const entries = view.getUint16(position + 10, true);
+    const centralOffset = view.getUint32(position + 16, true);
+    let cursor = centralOffset;
+    for (let index = 0; index < entries; index += 1) {
+      if (view.getUint32(cursor, true) !== 0x02014b50) throw new Error('XLSX no válido');
+      const method = view.getUint16(cursor + 10, true);
+      const compressedSize = view.getUint32(cursor + 20, true);
+      const nameLength = view.getUint16(cursor + 28, true);
+      const extraLength = view.getUint16(cursor + 30, true);
+      const commentLength = view.getUint16(cursor + 32, true);
+      const localOffset = view.getUint32(cursor + 42, true);
+      const name = decoder.decode(bytes.slice(cursor + 46, cursor + 46 + nameLength));
+      if (wanted(name) && method === 0) {
+        const localNameLength = view.getUint16(localOffset + 26, true);
+        const localExtraLength = view.getUint16(localOffset + 28, true);
+        const start = localOffset + 30 + localNameLength + localExtraLength;
+        files.push({ name, text: decoder.decode(bytes.slice(start, start + compressedSize)) });
+      }
+      cursor += 46 + nameLength + extraLength + commentLength;
+    }
+    return files;
+  }
+  return files;
+}
 function unescapeXml(value = '') {
   return value.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+}
+function simpleText(value = '') {
+  return String(value).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function columnIndex(ref = '') {
+  const letters = (ref.match(/[A-Z]+/) || [''])[0];
+  return [...letters].reduce((total, letter) => total * 26 + letter.charCodeAt(0) - 64, 0) - 1;
+}
+function rowsFromSheetXml(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  return [...doc.getElementsByTagName('row')].map(row => {
+    const values = [];
+    [...row.getElementsByTagName('c')].forEach((cell, fallbackIndex) => {
+      const parsedIndex = columnIndex(cell.getAttribute('r') || '');
+      const index = parsedIndex >= 0 ? parsedIndex : fallbackIndex;
+      const texts = [...cell.getElementsByTagName('t')].map(node => node.textContent || '').join('');
+      const valuesNode = cell.getElementsByTagName('v')[0];
+      values[index] = texts || valuesNode?.textContent || '';
+    });
+    return values.map(value => value || '');
+  });
+}
+function buildingKeyFromText(value = '') {
+  const normalized = simpleText(value);
+  if (normalized.includes('olimp') || normalized === 'building2') return 'building2';
+  if (normalized.includes('newton') || normalized === 'building1') return 'building1';
+  return '';
+}
+function apartmentNumberFromText(value = '') {
+  const match = String(value).match(/\d+/);
+  return match ? Number(match[0]) : 0;
+}
+function statusKeyFromText(value = '') {
+  const normalized = simpleText(value);
+  return Object.entries(STATUS).find(([, status]) => simpleText(status.label) === normalized)?.[0] || 'pending';
+}
+function dotationItemKeyFromText(value = '') {
+  const normalized = simpleText(value);
+  return DOTATION_ITEMS.find(item => simpleText(item.label) === normalized)?.key || '';
+}
+function backupFromVisibleSheets(buffer) {
+  const files = unzipStoredFiles(buffer, name => /^xl\/worksheets\/sheet\d+\.xml$/i.test(name));
+  const backup = { app: 'Edificios Lachar', version: 1, exportedAt: new Date().toISOString(), data: defaultData(), dotationData: defaultDotationData(), diaryEntries: [], apartmentPhotos: [] };
+  let hasSituation = false;
+  let hasDotation = false;
+  files.forEach(file => {
+    const rows = rowsFromSheetXml(file.text);
+    const header = (rows[0] || []).map(simpleText);
+    if (header.includes('limpieza') && header.includes('notas u observaciones')) {
+      hasSituation = true;
+      rows.slice(1).forEach(row => {
+        const building = buildingKeyFromText(row[0]);
+        const number = apartmentNumberFromText(row[1]);
+        const apartment = backup.data[building]?.find(item => Number(item.number) === number);
+        if (!apartment) return;
+        FIELDS.forEach(([field], index) => { apartment.statuses[field] = statusKeyFromText(row[index + 2]); });
+        apartment.notes = row[FIELDS.length + 2] || '';
+      });
+    }
+    if (header.includes('denominacion') && header.includes('instalado')) {
+      hasDotation = true;
+      rows.slice(1).forEach(row => {
+        const building = buildingKeyFromText(row[0]);
+        const number = apartmentNumberFromText(row[1]);
+        const itemKey = dotationItemKeyFromText(row[2]);
+        const apartment = backup.dotationData[building]?.find(item => Number(item.number) === number);
+        if (!apartment || !itemKey) return;
+        apartment.items[itemKey] = { installed: ['si', 'sí', 'yes', 'true', '1'].includes(simpleText(row[3])), notes: row[4] || '' };
+      });
+    }
+  });
+  if (!hasSituation && !hasDotation) throw new Error('Excel sin hojas reconocibles');
+  backup.mode = hasSituation && hasDotation ? 'all' : hasDotation ? 'dotation' : 'situation';
+  return backup;
 }
 function parseBackupText(text) {
   const trimmed = text.trim();
@@ -862,6 +967,9 @@ function extractBackupFromXlsx(buffer) {
   } catch {}
   try {
     return parseBackupText(unzipStoredFile(buffer, 'edificios-lachar-backup.json'));
+  } catch {}
+  try {
+    return backupFromVisibleSheets(buffer);
   } catch {}
   return parseBackupText(decoder.decode(buffer));
 }
