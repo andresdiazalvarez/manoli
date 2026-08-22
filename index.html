@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=17">
+  <link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body>
   <header class="hero">
@@ -119,6 +119,10 @@
           <button id="exportProjectBtn" class="button button--download-main" type="button">Descargar todo</button>
           <button id="loadProjectBtn" class="button button--load-project" type="button">Cargar proyecto</button>
           <input id="importProjectInput" type="file" accept=".xlsx,.xls,.html,.htm,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/html,application/json" hidden>
+        </div>
+        <div id="downloadReadyPanel" class="download-ready-panel" hidden>
+          <p>Excel preparado. Si estás en iPhone y no se abre solo, pulsa este botón y elige guardar en Archivos.</p>
+          <a id="downloadReadyLink" class="button button--download-ready" href="#" download target="_blank" rel="noopener">Abrir o guardar Excel</a>
         </div>
         <div class="saved-projects-panel">
           <h3>Proyectos guardados</h3>
@@ -348,6 +352,6 @@
       <button id="understoodInstall" class="button button--dark" type="button">Entendido</button>
     </div>
   </div>
-  <script src="app.js?v=17"></script>
+  <script src="app.js?v=19"></script>
 </body>
 </html>

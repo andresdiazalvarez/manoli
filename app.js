@@ -166,6 +166,7 @@ let selectedDateKey = '';
 let currentPhoto = '';
 let selectedApartmentPhotoSlot = 0;
 let activeArea = 'situation';
+let currentDownloadUrl = '';
 
 const $ = selector => document.querySelector(selector);
 const views = [...document.querySelectorAll('.view')];
@@ -501,6 +502,7 @@ async function openJournalList() {
 }
 async function openDownloadView() {
   await renderSavedProjects();
+  clearDownloadReady();
   $('#downloadView').classList.toggle('download-view--dotation', activeArea === 'dotation');
   showView('downloadView');
 }
@@ -755,16 +757,48 @@ function makeXlsxBackup(backup, mode = 'all') {
     { name: 'xl/workbook.xml', content: `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${workbookSheets}</sheets></workbook>` },
     { name: 'xl/_rels/workbook.xml.rels', content: `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${workbookRels}</Relationships>` },
     ...sheetFiles,
-    { name: 'customXml/item1.xml', content: backupXml }
+    { name: 'customXml/item1.xml', content: backupXml },
+    { name: 'edificios-lachar-backup.json', content: JSON.stringify(backup) }
   ]);
+}
+function clearDownloadReady() {
+  if (currentDownloadUrl) {
+    URL.revokeObjectURL(currentDownloadUrl);
+    currentDownloadUrl = '';
+  }
+  const panel = $('#downloadReadyPanel');
+  const link = $('#downloadReadyLink');
+  if (panel) panel.hidden = true;
+  if (link) {
+    link.removeAttribute('href');
+    link.removeAttribute('download');
+    link.textContent = 'Abrir o guardar Excel';
+  }
+}
+function showDownloadReady(filename, blob) {
+  clearDownloadReady();
+  currentDownloadUrl = URL.createObjectURL(blob);
+  const panel = $('#downloadReadyPanel');
+  const link = $('#downloadReadyLink');
+  if (!panel || !link) return;
+  link.href = currentDownloadUrl;
+  link.download = filename;
+  link.textContent = `Abrir o guardar ${filename}`;
+  panel.hidden = false;
 }
 function downloadBinaryFile(filename, content, type) {
   const blob = new Blob([content], { type });
+  showDownloadReady(filename, blob);
+  const automaticUrl = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
+  link.href = automaticUrl;
   link.download = filename;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  document.body.appendChild(link);
   link.click();
-  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(automaticUrl), 10000);
 }
 async function exportProject() {
   try {
@@ -773,7 +807,7 @@ async function exportProject() {
     const xlsx = makeXlsxBackup(backup, mode);
     const label = mode === 'dotation' ? 'dotacion' : 'situacion';
     downloadBinaryFile(`edificios-lachar-${label}-${formatExportDate()}.xlsx`, xlsx, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    showToastMessage('Proyecto descargado');
+    showToastMessage('Excel preparado. Si no se abre, pulsa el botón de guardar.');
   } catch {
     alert('No se ha podido descargar el proyecto. Inténtalo de nuevo.');
   }
@@ -796,7 +830,7 @@ function unzipStoredFile(buffer, wantedName) {
       const commentLength = view.getUint16(cursor + 32, true);
       const localOffset = view.getUint32(cursor + 42, true);
       const name = decoder.decode(bytes.slice(cursor + 46, cursor + 46 + nameLength));
-      if (name === wantedName) {
+      if (name === wantedName || name.endsWith(`/${wantedName}`)) {
         if (method !== 0) throw new Error('XLSX comprimido no compatible');
         const localNameLength = view.getUint16(localOffset + 26, true);
         const localExtraLength = view.getUint16(localOffset + 28, true);
@@ -811,19 +845,28 @@ function unzipStoredFile(buffer, wantedName) {
 function unescapeXml(value = '') {
   return value.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
 }
-function extractBackupFromXlsx(buffer) {
-  const xml = unzipStoredFile(buffer, 'customXml/item1.xml');
-  const match = xml.match(/<backup>([\s\S]*)<\/backup>/);
-  if (!match) throw new Error('XLSX sin copia de seguridad');
-  return JSON.parse(unescapeXml(match[1]));
-}
-function extractBackupFromFile(text) {
+function parseBackupText(text) {
   const trimmed = text.trim();
   if (trimmed.startsWith('{')) return JSON.parse(trimmed);
+  const backupMatch = text.match(/<backup[^>]*>([\s\S]*?)<\/backup>/i);
+  if (backupMatch) return JSON.parse(unescapeXml(backupMatch[1]));
   const documentCopy = new DOMParser().parseFromString(text, 'text/html');
   const backupNode = documentCopy.querySelector('#edificiosLacharBackupData');
   if (!backupNode) throw new Error('Archivo no válido');
   return JSON.parse(backupNode.textContent);
+}
+function extractBackupFromXlsx(buffer) {
+  const decoder = new TextDecoder();
+  try {
+    return parseBackupText(unzipStoredFile(buffer, 'customXml/item1.xml'));
+  } catch {}
+  try {
+    return parseBackupText(unzipStoredFile(buffer, 'edificios-lachar-backup.json'));
+  } catch {}
+  return parseBackupText(decoder.decode(buffer));
+}
+function extractBackupFromFile(text) {
+  return parseBackupText(text);
 }
 async function importProjectFile(event) {
   const file = event.target.files?.[0];
@@ -834,7 +877,7 @@ async function importProjectFile(event) {
     const backup = signature[0] === 80 && signature[1] === 75
       ? extractBackupFromXlsx(buffer)
       : extractBackupFromFile(new TextDecoder().decode(buffer));
-    if (backup?.app !== 'Edificios Lachar') throw new Error('Archivo no válido');
+    if (!['Edificios Lachar', 'Proyecto Manoli', 'Manoli'].includes(backup?.app)) throw new Error('Archivo no válido');
     if (!confirm('Esto sustituirá los datos de este dispositivo por los del archivo elegido. ¿Quieres continuar?')) return;
     if (backup.mode === 'dotation') {
       if (!backup.dotationData) throw new Error('Archivo de dotación no válido');

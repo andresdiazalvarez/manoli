@@ -270,6 +270,12 @@ textarea { width: 100%; resize: vertical; border: 1px solid #cfd4d1; border-radi
 .download-view--dotation .button--save-project { color: #35105f; background: #e8c9ff; }
 .download-view--dotation .button--download-main { color: white; background: #4a0d72; }
 .download-view--dotation .button--load-project { color: white; background: linear-gradient(135deg, #8d1f20, #d95b50); }
+.download-ready-panel { margin: 6px 0 20px; padding: 16px; border: 1px solid rgba(255,255,255,.36); border-radius: 16px; background: rgba(255,247,236,.18); }
+.download-ready-panel[hidden] { display: none; }
+.download-ready-panel p { margin: 0 0 12px; font-weight: 750; }
+.button--download-ready { width: 100%; min-height: 58px; display: grid; place-items: center; text-align: center; color: #352014; background: #ffe0a3; border: 1px solid rgba(255,255,255,.52); text-decoration: none; }
+.download-view--dotation .download-ready-panel { background: rgba(247,225,255,.18); }
+.download-view--dotation .button--download-ready { color: #35105f; background: #f0d6ff; }
 .saved-projects-panel { margin: 20px 0 14px; padding: 16px; border: 1px solid rgba(255,255,255,.3); border-radius: 16px; background: rgba(255,255,255,.12); }
 .saved-projects-panel h3 { margin: 0 0 12px; font: 600 22px Georgia, serif; color: #fff7ec; }
 .saved-projects-list { display: grid; gap: 10px; }
