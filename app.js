@@ -306,6 +306,14 @@ function renderDotationBuilding() {
   }).join('');
   requestAnimationFrame(() => document.querySelector('#dotationApartmentTabs .tab.active')?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }));
 }
+function updateDotationHeader() {
+  const apartment = dotationData[currentDotationBuilding][currentDotationApartment];
+  const stats = dotationStats(apartment);
+  $('#dotationBadge').textContent = `${stats.installed} de ${stats.total} instalados`;
+  const progress = dotationBuildingPercent(currentDotationBuilding);
+  $('#dotationProgress').style.background = `conic-gradient(#8b2cff ${progress}%, #eadcff 0)`;
+  $('#dotationProgress strong').textContent = `${progress}%`;
+}
 function renderDotationOverview() {
   const filter = $('#dotationOverviewBuilding').value;
   const keys = filter === 'all' ? Object.keys(BUILDINGS) : [filter];
@@ -882,6 +890,11 @@ $('#downloadMenuBtn').addEventListener('click', () => { activeArea = 'situation'
 $('#dotationDownloadBtn').addEventListener('click', () => { activeArea = 'dotation'; openDownloadView(); });
 $('#saveProjectBtn').addEventListener('click', saveNewProject);
 $('#exportProjectBtn').addEventListener('click', exportProject);
+$('#loadProjectBtn').addEventListener('click', () => {
+  const area = activeArea === 'dotation' ? 'la dotación' : 'la situación';
+  if (!confirm(`ATENCIÓN: al cargar un proyecto puedes sustituir o eliminar los datos actuales de ${area} en este móvil. Antes de continuar, asegúrate de haber descargado o guardado una copia. ¿Quieres elegir un archivo para cargar?`)) return;
+  $('#importProjectInput').click();
+});
 $('#importProjectInput').addEventListener('change', importProjectFile);
 $('#savedProjectsList').addEventListener('click', event => {
   const button = event.target.closest('[data-saved-project-action]');
@@ -914,7 +927,10 @@ $('#dotationItemsBody').addEventListener('click', event => {
   const apartment = dotationData[currentDotationBuilding][currentDotationApartment];
   apartment.items[itemKey].installed = !apartment.items[itemKey].installed;
   saveDotation();
-  renderDotationBuilding();
+  button.classList.toggle('yes', apartment.items[itemKey].installed);
+  button.classList.toggle('no', !apartment.items[itemKey].installed);
+  button.textContent = apartment.items[itemKey].installed ? 'Sí' : 'No';
+  updateDotationHeader();
 });
 $('#dotationItemsBody').addEventListener('input', event => {
   const itemKey = event.target.dataset.dotationNote;
