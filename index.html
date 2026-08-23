@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=20">
+  <link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body>
   <header class="hero">
@@ -113,16 +113,17 @@
       <article class="download-card">
         <p class="section-kicker">Copia de seguridad</p>
         <h2 id="downloadTitle">Guardar, descargar o cargar proyecto</h2>
-        <p>Guarda una copia en este móvil, descarga toda la información en Excel o carga ese archivo en otro móvil para dejar la app exactamente igual.</p>
+        <p>Guarda una copia en este móvil, descarga un Excel para consultar o una copia segura para llevar el proyecto completo a otro móvil.</p>
         <div class="download-actions">
           <button id="saveProjectBtn" class="button button--save-project" type="button">Guardar proyecto</button>
-          <button id="exportProjectBtn" class="button button--download-main" type="button">Descargar todo</button>
+          <button id="exportProjectBtn" class="button button--download-main" type="button">Descargar Excel</button>
+          <button id="exportSafeProjectBtn" class="button button--download-safe" type="button">Descargar copia segura</button>
           <button id="loadProjectBtn" class="button button--load-project" type="button">Cargar proyecto</button>
           <input id="importProjectInput" type="file" accept=".xlsx,.xls,.html,.htm,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/html,application/json" hidden>
         </div>
         <div id="downloadReadyPanel" class="download-ready-panel" hidden>
-          <p>Excel preparado. Si estás en iPhone y no se abre solo, pulsa este botón y elige guardar en Archivos.</p>
-          <a id="downloadReadyLink" class="button button--download-ready" href="#" download target="_blank" rel="noopener">Abrir o guardar Excel</a>
+          <p>Archivo preparado. Si estás en iPhone y no se abre solo, pulsa este botón y elige guardar en Archivos.</p>
+          <a id="downloadReadyLink" class="button button--download-ready" href="#" download target="_blank" rel="noopener">Abrir o guardar archivo</a>
         </div>
         <div class="saved-projects-panel">
           <h3>Proyectos guardados</h3>
@@ -352,6 +353,6 @@
       <button id="understoodInstall" class="button button--dark" type="button">Entendido</button>
     </div>
   </div>
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>

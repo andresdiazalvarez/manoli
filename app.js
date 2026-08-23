@@ -812,6 +812,16 @@ async function exportProject() {
     alert('No se ha podido descargar el proyecto. Inténtalo de nuevo.');
   }
 }
+async function exportSafeProject() {
+  try {
+    const backup = { ...await buildProjectBackup(), mode: 'all', backupType: 'safe-json' };
+    const content = JSON.stringify(backup, null, 2);
+    downloadBinaryFile(`edificios-lachar-copia-segura-${formatExportDate()}.json`, content, 'application/json');
+    showToastMessage('Copia segura preparada. Guárdala para cargarla en otro móvil.');
+  } catch {
+    alert('No se ha podido preparar la copia segura. Inténtalo de nuevo.');
+  }
+}
 function unzipStoredFile(buffer, wantedName) {
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
@@ -1041,6 +1051,7 @@ $('#downloadMenuBtn').addEventListener('click', () => { activeArea = 'situation'
 $('#dotationDownloadBtn').addEventListener('click', () => { activeArea = 'dotation'; openDownloadView(); });
 $('#saveProjectBtn').addEventListener('click', saveNewProject);
 $('#exportProjectBtn').addEventListener('click', exportProject);
+$('#exportSafeProjectBtn').addEventListener('click', exportSafeProject);
 $('#loadProjectBtn').addEventListener('click', () => {
   const area = activeArea === 'dotation' ? 'la dotación' : 'la situación';
   if (!confirm(`ATENCIÓN: al cargar un proyecto puedes sustituir o eliminar los datos actuales de ${area} en este móvil. Antes de continuar, asegúrate de haber descargado o guardado una copia. ¿Quieres elegir un archivo para cargar?`)) return;
