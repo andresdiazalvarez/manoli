@@ -355,6 +355,7 @@ const putApartmentPhoto = photo => diaryOperation('readwrite', store => store.pu
 const deleteApartmentPhoto = (building, apartmentNumber, slot) => diaryOperation('readwrite', store => store.delete(apartmentPhotoId(building, apartmentNumber, slot)), 'apartmentPhotos');
 const getAllFromStore = storeName => diaryOperation('readonly', store => store.getAll(), storeName);
 const putSavedProject = project => diaryOperation('readwrite', store => store.put(project), 'savedProjects');
+const deleteSavedProjectRecord = id => diaryOperation('readwrite', store => store.delete(id), 'savedProjects');
 async function replaceStore(storeName, records = []) {
   const database = await openDiaryDatabase();
   return new Promise((resolve, reject) => {
@@ -548,9 +549,13 @@ async function renderSavedProjects() {
     <div class="saved-project-item" data-saved-project="${escapeHtml(project.id)}">
       <div>
         <strong>Proyecto guardado ${project.number}</strong>
-        <span>Actualizado: ${escapeHtml(savedProjectDate(project.updatedAt || project.createdAt))}</span>
+        <span>Guardado: ${escapeHtml(savedProjectDate(project.createdAt || project.updatedAt))}</span>
+        ${project.updatedAt && project.updatedAt !== project.createdAt ? `<span>Actualizado: ${escapeHtml(savedProjectDate(project.updatedAt))}</span>` : ''}
       </div>
-      <button type="button" data-saved-project-action="modify">Modificar</button>
+      <div class="saved-project-actions">
+        <button type="button" data-saved-project-action="modify">Modificar</button>
+        <button class="danger" type="button" data-saved-project-action="delete">Eliminar</button>
+      </div>
     </div>
   `).join('');
 }
@@ -582,6 +587,19 @@ async function modifySavedProject(id) {
     await saveProjectSnapshot(project);
   } catch {
     alert('No se ha podido modificar este proyecto guardado.');
+  }
+}
+async function deleteSavedProject(id) {
+  try {
+    const projects = await getAllFromStore('savedProjects');
+    const project = projects.find(item => item.id === id);
+    if (!project) return;
+    if (!confirm(`¿Eliminar el Proyecto guardado ${project.number}? Esta acción no borra los datos actuales de la app, solo quita esta copia guardada.`)) return;
+    await deleteSavedProjectRecord(id);
+    await renderSavedProjects();
+    showToastMessage('Proyecto guardado eliminado');
+  } catch {
+    alert('No se ha podido eliminar este proyecto guardado.');
   }
 }
 function formatExportDate() {
@@ -1061,7 +1079,9 @@ $('#importProjectInput').addEventListener('change', importProjectFile);
 $('#savedProjectsList').addEventListener('click', event => {
   const button = event.target.closest('[data-saved-project-action]');
   const item = event.target.closest('[data-saved-project]');
-  if (button && item) modifySavedProject(item.dataset.savedProject);
+  if (!button || !item) return;
+  if (button.dataset.savedProjectAction === 'delete') deleteSavedProject(item.dataset.savedProject);
+  else modifySavedProject(item.dataset.savedProject);
 });
 document.querySelectorAll('[data-go-home]').forEach(button => button.addEventListener('click', openAreaHome));
 $('#apartmentTabs').addEventListener('click', event => {

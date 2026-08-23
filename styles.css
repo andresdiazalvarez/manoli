@@ -283,9 +283,12 @@ textarea { width: 100%; resize: vertical; border: 1px solid #cfd4d1; border-radi
 .saved-projects-list { display: grid; gap: 10px; }
 .saved-project-item { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px; border-radius: 12px; color: #3a2115; background: rgba(255,247,236,.92); }
 .saved-project-item strong { display: block; margin-bottom: 3px; }
-.saved-project-item span { color: #74543b; font-size: 12px; }
+.saved-project-item span { display: block; color: #74543b; font-size: 12px; line-height: 1.45; }
+.saved-project-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .saved-project-item button { border: 0; border-radius: 9px; padding: 10px 12px; color: #fff7ec; background: #7a4727; font-weight: 750; }
+.saved-project-item button.danger { background: linear-gradient(135deg, #8d1f20, #d95b50); }
 .download-view--dotation .saved-project-item button { background: #5f168c; }
+.download-view--dotation .saved-project-item button.danger { background: linear-gradient(135deg, #8d1f20, #d95b50); }
 .saved-projects-empty { margin: 0; color: rgba(255,247,236,.82); font-size: 14px; }
 .download-note { margin: 0; font-size: 13px; }
 footer { text-align: center; padding: 6px 20px 28px; color: #7d8582; font-size: 12px; }
@@ -326,6 +329,7 @@ footer span { margin: 0 6px; }
   .day-card { grid-template-columns: 1fr; }
   .download-actions { grid-template-columns: 1fr; }
   .saved-project-item { grid-template-columns: 1fr; }
+  .saved-project-actions { grid-template-columns: 1fr; }
   .photo-panel { border-right: 0; border-bottom: 1px solid var(--line); }
   .journal-filters { grid-template-columns: 1fr 1fr; }
   .journal-filters .button { grid-column: 1 / -1; }
