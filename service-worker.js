@@ -1,11 +1,11 @@
-const CACHE_NAME = 'manoli-app-v22';
+const CACHE_NAME = 'manoli-app-v23';
 const APP_FILES = [
   './',
   './index.html',
   './styles.css',
-  './styles.css?v=22',
+  './styles.css?v=23',
   './app.js',
-  './app.js?v=22',
+  './app.js?v=23',
   './building.jpg',
   './manifest.webmanifest',
   './icons/icon.svg',
